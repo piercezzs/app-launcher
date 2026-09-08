@@ -72,6 +72,7 @@ export default function App() {
   const [pendingGroupRemoval, setPendingGroupRemoval] = useState<string | null>(null);
   const [groupSelectOpen, setGroupSelectOpen] = useState(false);
   const catalogScrollRef = useRef<HTMLDivElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
   const loadInFlight = useRef<Promise<LauncherState | null> | null>(null);
 
   useEffect(() => { void load(false); }, []);
@@ -368,7 +369,7 @@ export default function App() {
 
   return (
     <div className="launcher-shell">
-      <WindowTitleBar query={query} onQueryChange={setQuery} onWindowError={() => setToast(message("feedback.windowFailed"))} />
+      <WindowTitleBar query={query} searchInputRef={searchInputRef} searchContext={JSON.stringify([activeGroup, sortMode])} onQueryChange={setQuery} onWindowError={() => setToast(message("feedback.windowFailed"))} />
       <div className="launcher-workspace">
         <aside className="launcher-sidebar" aria-label={t("groups.heading")}>
           <div className="sidebar-heading">
@@ -440,7 +441,7 @@ export default function App() {
                 <div className="empty-panel">
                   <strong>{query ? t("empty.searchTitle") : t("empty.categoryTitle")}</strong>
                   <span>{query ? t("empty.searchDescription") : t("empty.categoryDescription")}</span>
-                  {query ? <Button className="paper-button" onClick={() => setQuery("")}>{t("search.clear")}</Button> : null}
+                  {query ? <Button className="paper-button" onClick={() => { setQuery(""); searchInputRef.current?.focus(); }}>{t("search.clear")}</Button> : null}
                 </div>
               ) : null}
               {!loading && visibleApps.length > 0 ? (

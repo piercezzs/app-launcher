@@ -3,19 +3,27 @@ import { useTranslation } from "react-i18next";
 import { t } from "../i18n";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Search, X } from "@tessera/ui";
-import type { MouseEvent } from "react";
+import type { MouseEvent, RefObject } from "react";
+import { useSearchQuery } from "./useSearchQuery";
 import { BotanicalMark } from "./BotanicalMark";
 
 interface WindowTitleBarProps {
   readonly query: string;
+  readonly searchContext: string;
+  readonly searchInputRef: RefObject<HTMLInputElement | null>;
   readonly onQueryChange: (query: string) => void;
   readonly onWindowError: () => void;
 }
 
 type WindowAction = "minimize" | "maximize" | "close";
 
-export function WindowTitleBar({ query, onQueryChange, onWindowError }: WindowTitleBarProps) {
+export function WindowTitleBar({ query, searchContext, searchInputRef: inputRef, onQueryChange, onWindowError }: WindowTitleBarProps) {
   useTranslation();
+  const search = useSearchQuery(query, onQueryChange, searchContext);
+  function clearSearch() {
+    search.clear();
+    inputRef.current?.focus();
+  }
   const isMacOS = document.documentElement.dataset.platform === "macos";
 
   async function runWindowAction(action: WindowAction) {
@@ -58,17 +66,26 @@ export function WindowTitleBar({ query, onQueryChange, onWindowError }: WindowTi
         <Search size={16} aria-hidden="true" />
         <input
           type="search"
-          value={query}
+          ref={inputRef}
+          value={search.draft}
           placeholder={t("search.placeholder")}
-          onChange={(event) => onQueryChange(event.target.value)}
+          onChange={(event) => search.change(event.currentTarget.value)}
+          onCompositionStart={search.compositionStart}
+          onCompositionEnd={(event) => search.compositionEnd(event.currentTarget.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && !event.nativeEvent.isComposing && event.keyCode !== 229) {
+              event.preventDefault();
+              search.flush();
+            }
+          }}
         />
-        {query ? (
+        {search.draft ? (
           <button
             type="button"
             className="titlebar-search__clear"
             aria-label={t("search.clear")}
             title={t("search.clear")}
-            onClick={() => onQueryChange("")}
+            onClick={clearSearch}
           >
             <X size={14} aria-hidden="true" />
           </button>

@@ -1,0 +1,5 @@
+packages:
+  - 'apps/app-launcher'
+  - 'packages/ui'
+onlyBuiltDependencies:
+  - esbuild

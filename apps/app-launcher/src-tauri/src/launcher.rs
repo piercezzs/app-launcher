@@ -5,6 +5,10 @@ use std::{
     fs,
     path::{Path, PathBuf},
     process::Command,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Mutex, MutexGuard,
+    },
     time::{SystemTime, UNIX_EPOCH},
 };
 use tauri::{AppHandle, Manager};
@@ -144,28 +148,93 @@ pub struct UpdateAppPayload {
     args: Option<String>,
 }
 
+// Discovery never owns this lock. Only JSON snapshots and existing command
+// transactions share it, so a background scan cannot expose partial writes.
+static STORE_ACCESS: Mutex<()> = Mutex::new(());
+static LIST_IN_FLIGHT: AtomicBool = AtomicBool::new(false);
+
+struct ListRequest<'a>(&'a AtomicBool);
+
+impl<'a> ListRequest<'a> {
+    fn begin(in_flight: &'a AtomicBool) -> Result<Self, String> {
+        in_flight
+            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+            .map_err(|_| "Application discovery is already running".to_string())?;
+        Ok(Self(in_flight))
+    }
+}
+
+impl Drop for ListRequest<'_> {
+    fn drop(&mut self) {
+        self.0.store(false, Ordering::Release);
+    }
+}
+
+fn lock_store() -> Result<MutexGuard<'static, ()>, String> {
+    STORE_ACCESS
+        .lock()
+        .map_err(|_| "Application data access was interrupted; restart the app".to_string())
+}
+
 #[tauri::command]
-pub fn list_apps(app: AppHandle, force: bool) -> Result<LauncherState, String> {
-    let store = StorePaths::new(&app)?;
-    let mut cache: ScanCache = read_json(&store.cache)?;
-    if force || cache.version != CACHE_VERSION || cache.apps.is_empty() {
+pub async fn list_apps(app: AppHandle, force: bool) -> Result<LauncherState, String> {
+    // Acquire before spawning, so repeated IPC calls cannot queue more scans.
+    let request = ListRequest::begin(&LIST_IN_FLIGHT)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        // The worker owns the claim even if its caller stops awaiting the result.
+        let _request = request;
+        let store = StorePaths::new(&app)?;
+        load_apps(&store, force, || {
+            #[cfg(target_os = "windows")]
+            let _com = WindowsComGuard::initialize()?;
+            Ok(scan_installed_apps())
+        })
+    })
+    .await
+    .map_err(|err| format!("Application discovery worker failed: {err}"))?
+}
+
+fn load_apps(
+    store: &StorePaths,
+    force: bool,
+    discover: impl FnOnce() -> Result<Vec<ScannedApp>, String>,
+) -> Result<LauncherState, String> {
+    let mut cache: ScanCache = {
+        let _access = lock_store()?;
+        read_json(&store.cache)?
+    };
+    let needs_scan = force || cache.version != CACHE_VERSION || cache.apps.is_empty();
+    if needs_scan {
         cache = ScanCache {
             version: CACHE_VERSION,
-            apps: scan_installed_apps(),
+            apps: discover()?,
         };
-        write_json(&store.cache, &cache)?;
     }
-    let overlay: OverlayData = read_json(&store.overlay)?;
-    let device: DeviceData = read_json(&store.device)?;
+    let (overlay, device) = {
+        let _access = lock_store()?;
+        if needs_scan {
+            write_json(&store.cache, &cache)?;
+        }
+        // Read user data after discovery, preserving edits made during the scan.
+        (
+            read_json::<OverlayData>(&store.overlay)?,
+            read_json::<DeviceData>(&store.device)?,
+        )
+    };
     Ok(build_state(&overlay, &device, &cache))
 }
 
 #[tauri::command]
 pub fn launch_app(app: AppHandle, id: String) -> Result<LaunchAppResult, String> {
     let store = StorePaths::new(&app)?;
-    let cache: ScanCache = read_json(&store.cache)?;
-    let mut overlay: OverlayData = read_json(&store.overlay)?;
-    let device: DeviceData = read_json(&store.device)?;
+    let (cache, overlay, device) = {
+        let _access = lock_store()?;
+        (
+            read_json::<ScanCache>(&store.cache)?,
+            read_json::<OverlayData>(&store.overlay)?,
+            read_json::<DeviceData>(&store.device)?,
+        )
+    };
     let state = build_state(&overlay, &device, &cache);
     let target = state
         .apps
@@ -178,6 +247,8 @@ pub fn launch_app(app: AppHandle, id: String) -> Result<LaunchAppResult, String>
     }
 
     let name = start_launcher_app(target)?;
+    let _access = lock_store()?;
+    let mut overlay: OverlayData = read_json(&store.overlay)?;
     let stats = record_launch(&mut overlay, &id)?;
     write_json(&store.overlay, &overlay)?;
     Ok(LaunchAppResult {
@@ -190,9 +261,14 @@ pub fn launch_app(app: AppHandle, id: String) -> Result<LaunchAppResult, String>
 #[tauri::command]
 pub fn open_app_location(app: AppHandle, id: String) -> Result<(), String> {
     let store = StorePaths::new(&app)?;
-    let cache: ScanCache = read_json(&store.cache)?;
-    let overlay: OverlayData = read_json(&store.overlay)?;
-    let device: DeviceData = read_json(&store.device)?;
+    let (cache, overlay, device) = {
+        let _access = lock_store()?;
+        (
+            read_json::<ScanCache>(&store.cache)?,
+            read_json::<OverlayData>(&store.overlay)?,
+            read_json::<DeviceData>(&store.device)?,
+        )
+    };
     let state = build_state(&overlay, &device, &cache);
     let target = state
         .apps
@@ -221,6 +297,7 @@ pub fn add_custom_app(app: AppHandle, payload: AddCustomPayload) -> Result<Strin
         return Err("路径不能为空".to_string());
     }
 
+    let _access = lock_store()?;
     let store = StorePaths::new(&app)?;
     let mut device: DeviceData = read_json(&store.device)?;
     let mut overlay: OverlayData = read_json(&store.overlay)?;
@@ -246,6 +323,7 @@ pub fn add_custom_app(app: AppHandle, payload: AddCustomPayload) -> Result<Strin
 
 #[tauri::command]
 pub fn update_app(app: AppHandle, payload: UpdateAppPayload) -> Result<(), String> {
+    let _access = lock_store()?;
     let store = StorePaths::new(&app)?;
     let mut device: DeviceData = read_json(&store.device)?;
     let mut overlay: OverlayData = read_json(&store.overlay)?;
@@ -286,6 +364,7 @@ pub fn update_app(app: AppHandle, payload: UpdateAppPayload) -> Result<(), Strin
 
 #[tauri::command]
 pub fn delete_app(app: AppHandle, id: String) -> Result<(), String> {
+    let _access = lock_store()?;
     let store = StorePaths::new(&app)?;
     let mut device: DeviceData = read_json(&store.device)?;
     let mut overlay: OverlayData = read_json(&store.overlay)?;
@@ -304,6 +383,7 @@ pub fn delete_app(app: AppHandle, id: String) -> Result<(), String> {
 
 #[tauri::command]
 pub fn save_groups(app: AppHandle, groups: Vec<String>) -> Result<Vec<String>, String> {
+    let _access = lock_store()?;
     let store = StorePaths::new(&app)?;
     let mut overlay: OverlayData = read_json(&store.overlay)?;
     let next_groups = normalize_groups(groups);
@@ -328,6 +408,7 @@ pub fn migrate_group(app: AppHandle, from: String, to: String) -> Result<usize, 
         return Ok(0);
     }
 
+    let _access = lock_store()?;
     let store = StorePaths::new(&app)?;
     let mut overlay: OverlayData = read_json(&store.overlay)?;
     let mut count = 0;
@@ -1059,6 +1140,41 @@ fn expand_windows_env_vars(value: &str) -> String {
     expanded
 }
 
+// Shell icon lookup requires COM on the calling thread. Blocking-pool threads
+// cannot inherit the main window's apartment, and every successful init is paired.
+#[cfg(target_os = "windows")]
+struct WindowsComGuard(bool, std::marker::PhantomData<std::rc::Rc<()>>);
+
+#[cfg(target_os = "windows")]
+impl WindowsComGuard {
+    fn initialize() -> Result<Self, String> {
+        use windows_sys::Win32::{
+            Foundation::RPC_E_CHANGED_MODE,
+            System::Com::{CoInitializeEx, COINIT_APARTMENTTHREADED},
+        };
+        let result = unsafe { CoInitializeEx(std::ptr::null(), COINIT_APARTMENTTHREADED as u32) };
+        if result >= 0 {
+            Ok(Self(true, std::marker::PhantomData))
+        } else if result == RPC_E_CHANGED_MODE {
+            // Another owner initialized this reused thread in a different apartment.
+            Ok(Self(false, std::marker::PhantomData))
+        } else {
+            Err(format!(
+                "Unable to initialize Windows application discovery: {result:#x}"
+            ))
+        }
+    }
+}
+
+#[cfg(target_os = "windows")]
+impl Drop for WindowsComGuard {
+    fn drop(&mut self) {
+        if self.0 {
+            unsafe { windows_sys::Win32::System::Com::CoUninitialize() };
+        }
+    }
+}
+
 #[cfg(target_os = "windows")]
 type WindowsHicon = windows_sys::Win32::UI::WindowsAndMessaging::HICON;
 
@@ -1477,6 +1593,139 @@ fn normalize_name_phrase(value: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    static SCAN_TESTS: Mutex<()> = Mutex::new(());
+
+    struct TestStore {
+        root: PathBuf,
+        paths: StorePaths,
+    }
+
+    impl TestStore {
+        fn new() -> Self {
+            let root = std::env::temp_dir().join(format!(
+                "app-launcher-scan-test-{}-{}",
+                std::process::id(),
+                SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_nanos()
+            ));
+            Self {
+                paths: StorePaths {
+                    overlay: root.join("overlay.json"),
+                    device: root.join("device.json"),
+                    cache: root.join("scan_cache.json"),
+                },
+                root,
+            }
+        }
+    }
+
+    impl Drop for TestStore {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.root);
+        }
+    }
+
+    fn scanned_app(id: &str) -> ScannedApp {
+        ScannedApp {
+            id: id.into(),
+            name: id.into(),
+            path: String::new(),
+            args: String::new(),
+            bundle_id: String::new(),
+            aumid: String::new(),
+            source: "uwp".into(),
+            icon: String::new(),
+        }
+    }
+
+    #[test]
+    fn refresh_allows_user_edits_during_discovery_and_returns_latest_data() {
+        let _test = SCAN_TESTS.lock().unwrap();
+        let store = TestStore::new();
+        let state = load_apps(&store.paths, true, || {
+            // A concurrent editor must be able to finish before discovery does.
+            std::thread::scope(|scope| {
+                scope
+                    .spawn(|| {
+                        let _access = STORE_ACCESS
+                            .try_lock()
+                            .expect("discovery must not lock storage");
+                        let mut overlay = OverlayData::default();
+                        overlay.groups.push("Work".into());
+                        overlay.overrides.insert(
+                            "scanned".into(),
+                            AppOverride {
+                                name: Some("User name".into()),
+                                pinned: Some(true),
+                                ..AppOverride::default()
+                            },
+                        );
+                        let device = DeviceData {
+                            custom: vec![CustomApp {
+                                id: "custom".into(),
+                                name: "Custom app".into(),
+                                path: String::new(),
+                                args: String::new(),
+                                icon: String::new(),
+                            }],
+                        };
+                        write_json(&store.paths.overlay, &overlay).unwrap();
+                        write_json(&store.paths.device, &device).unwrap();
+                    })
+                    .join()
+                    .unwrap();
+            });
+            Ok(vec![scanned_app("scanned")])
+        })
+        .unwrap();
+        assert_eq!(state.groups, vec!["Work"]);
+        assert_eq!(state.apps.len(), 2);
+        let scanned = state.apps.iter().find(|app| app.id == "scanned").unwrap();
+        assert_eq!(scanned.name, "User name");
+        assert!(scanned.pinned);
+        let cached: ScanCache = read_json(&store.paths.cache).unwrap();
+        assert_eq!(cached.apps[0].name, "scanned");
+    }
+
+    #[test]
+    fn failed_discovery_keeps_cache_and_next_request_can_retry() {
+        let _test = SCAN_TESTS.lock().unwrap();
+        let store = TestStore::new();
+        write_json(
+            &store.paths.cache,
+            &ScanCache {
+                version: CACHE_VERSION,
+                apps: vec![scanned_app("previous")],
+            },
+        )
+        .unwrap();
+        let in_flight = AtomicBool::new(false);
+        let result = {
+            let _request = ListRequest::begin(&in_flight).unwrap();
+            assert!(ListRequest::begin(&in_flight).is_err());
+            load_apps(&store.paths, true, || Err("discovery failed".into()))
+        };
+        assert_eq!(result.unwrap_err(), "discovery failed");
+        let cached: ScanCache = read_json(&store.paths.cache).unwrap();
+        assert_eq!(cached.apps[0].id, "previous");
+        let _retry = ListRequest::begin(&in_flight).expect("failure releases the request claim");
+        let state = load_apps(&store.paths, true, || Ok(vec![scanned_app("replacement")])).unwrap();
+        assert_eq!(state.apps[0].id, "replacement");
+    }
+
+    #[test]
+    fn worker_unwinding_releases_the_request_claim() {
+        let in_flight = AtomicBool::new(false);
+        let failed = std::panic::catch_unwind(|| {
+            let _request = ListRequest::begin(&in_flight).unwrap();
+            panic!("simulated worker failure");
+        });
+        assert!(failed.is_err());
+        assert!(ListRequest::begin(&in_flight).is_ok());
+    }
 
     #[test]
     fn keeps_common_gui_tools() {

@@ -4,7 +4,9 @@ The pnpm workspace has one desktop product and one internal UI package. Both
 TypeScript projects extend `tsconfig.base.json`. The UI exports TypeScript source
 and CSS, so Vite builds the complete frontend without a published UI dependency.
 
-React handles presentation and user interaction. `src/api.ts` invokes typed
+React handles presentation and user interaction. Application-local i18next resources
+provide English and Simplified Chinese; locale preferences use local WebView
+storage and do not change the three JSON data files. See `localization.md`. `src/api.ts` invokes typed
 application-local Tauri commands. Rust in `src-tauri/src/launcher.rs` handles
 discovery, icons, local application launch, grouping, and JSON persistence.
 
@@ -12,6 +14,19 @@ The JSON files `launcher/device.json`, `launcher/overlay.json`, and
 `launcher/scan_cache.json` live under Tauri's OS app-data directory. Runtime app
 records combine those inputs. Cache version mismatches trigger rediscovery;
 cache invalidation must not delete user-owned groups or custom entries.
+
+`list_apps` runs discovery, icon extraction, and state assembly on a Tauri blocking
+worker through an async command. A process-local claim rejects overlapping list
+requests instead of queuing scans; success, failure, and worker unwinding release
+the claim so a later request can retry. Discovery never holds the store lock.
+Short cache/snapshot transactions share a mutex with the existing synchronous
+commands, preventing readers from observing a JSON write in progress. Application
+launch and reveal operations execute after releasing the snapshot lock. The worker
+reads overlay and custom entries after scanning so edits made during discovery
+are reflected in its result. These guards coordinate one running app process;
+they do not introduce cross-process storage coordination or change JSON formats.
+Windows workers initialize COM before Shell icon lookup and release only their own
+initialization on that same thread.
 
 The bundle identifier is `com.tessera.app-launcher`. It is retained for data and
 installation continuity despite the repository becoming independent.

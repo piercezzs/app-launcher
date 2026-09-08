@@ -1,7 +1,7 @@
 {
   "name": "app-launcher-workspace",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "license": "GPL-3.0-only",
   "author": "piercezzs",
   "type": "module",
@@ -14,7 +14,8 @@
     "build": "pnpm --filter app-launcher desktop:build",
     "check": "pnpm -r check",
     "typecheck": "pnpm -r typecheck",
-    "test": "cargo test --locked --manifest-path apps/app-launcher/src-tauri/Cargo.toml"
+    "test": "pnpm --filter app-launcher test && cargo test --locked --manifest-path apps/app-launcher/src-tauri/Cargo.toml",
+    "desktop:build:local": "node scripts/build-local-macos.mjs"
   },
   "repository": {
     "type": "git",

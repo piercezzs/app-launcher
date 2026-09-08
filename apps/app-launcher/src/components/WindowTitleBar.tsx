@@ -1,3 +1,6 @@
+import { ApplicationSettings } from "./ApplicationSettings";
+import { useTranslation } from "react-i18next";
+import { t } from "../i18n";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Search, X } from "@tessera/ui";
 import type { MouseEvent } from "react";
@@ -12,6 +15,7 @@ interface WindowTitleBarProps {
 type WindowAction = "minimize" | "maximize" | "close";
 
 export function WindowTitleBar({ query, onQueryChange, onWindowError }: WindowTitleBarProps) {
+  useTranslation();
   const isMacOS = document.documentElement.dataset.platform === "macos";
 
   async function runWindowAction(action: WindowAction) {
@@ -44,43 +48,48 @@ export function WindowTitleBar({ query, onQueryChange, onWindowError }: WindowTi
         </span>
         <span data-tauri-drag-region>
           <strong data-tauri-drag-region>App Launcher</strong>
-          <small data-tauri-drag-region>本机应用启动器</small>
+          <small data-tauri-drag-region>{t("brand.subtitle")}</small>
         </span>
       </div>
 
+      <div className="titlebar-search-area">
       <label className="titlebar-search">
-        <span className="visually-hidden">搜索应用、备注或路径</span>
+        <span className="visually-hidden">{t("search.placeholder")}</span>
         <Search size={16} aria-hidden="true" />
         <input
           type="search"
           value={query}
-          placeholder="搜索应用、备注或路径"
+          placeholder={t("search.placeholder")}
           onChange={(event) => onQueryChange(event.target.value)}
         />
         {query ? (
           <button
             type="button"
             className="titlebar-search__clear"
-            aria-label="清除搜索"
-            title="清除搜索"
+            aria-label={t("search.clear")}
+            title={t("search.clear")}
             onClick={() => onQueryChange("")}
           >
             <X size={14} aria-hidden="true" />
           </button>
         ) : null}
       </label>
+      </div>
 
-      <p className="window-motto" data-tauri-drag-region>在本地，遇见更好的自己。</p>
+      <div className="titlebar-tools">
+        <p className="window-motto" data-tauri-drag-region>{t("brand.motto")}</p>
+        <ApplicationSettings />
+      </div>
 
       {!isMacOS ? (
-        <div className="window-controls" aria-label="窗口控制">
-          <button type="button" aria-label="最小化" title="最小化" onClick={() => void runWindowAction("minimize")}>
+        <div className="window-controls" aria-label={t("window.controls")}>
+          <button type="button" aria-label={t("window.minimize")} title={t("window.minimize")} onClick={() => void runWindowAction("minimize")}>
             <span aria-hidden="true">—</span>
           </button>
-          <button type="button" aria-label="最大化或还原" title="最大化或还原" onClick={() => void runWindowAction("maximize")}>
+          <button type="button" aria-label={t("window.maximize")} title={t("window.maximize")} onClick={() => void runWindowAction("maximize")}>
             <span aria-hidden="true">□</span>
           </button>
-          <button className="window-control--close" type="button" aria-label="关闭" title="关闭" onClick={() => void runWindowAction("close")}>
+          <button className="window-control--close" type="button" aria-label={t("common.close")} title={t("common.close")} onClick={() => void runWindowAction("close")}>
             <span aria-hidden="true">×</span>
           </button>
         </div>

@@ -1,48 +1,87 @@
 # App Launcher
 
+**English** | [简体中文](README.zh-CN.md)
+
 A local-first application launcher for macOS and Windows, built with Tauri 2,
-React, and Rust. Search installed applications, organize them into groups, pin
-favorites, and add your own local launch entries.
+React, and Rust. Find your apps, organize your workspace, and launch with less friction.
+
+[Download](https://github.com/piercezzs/app-launcher/releases) ·
+[Report an issue](https://github.com/piercezzs/app-launcher/issues) ·
+[Release guide](docs/releasing.md)
+
+## A look inside
+
+![App Launcher in English on macOS](docs/images/main-en.jpg)
+
+Search, pinned apps, groups, recent activity, and app details in one paper-inspired workspace.
+
+![Editing an app in English on macOS](docs/images/edit-en.jpg)
+
+Screenshots show the current development build running in a native macOS window,
+using an isolated profile with demonstration groups and history. User-created names,
+notes, and paths retain their original text when the interface language changes.
 
 ## Features
 
-- Search, groups, pinned applications, recent launches, and hidden entries.
-- macOS application discovery and Windows Start Menu / UWP discovery.
-- Native application icons with a placeholder when extraction is unavailable.
-- Custom local application paths and launch arguments.
-- Paper-inspired interface with platform-specific window controls.
-- Device-local data; no account or remote service is required for launching apps.
+- Search by app name, note, or local path.
+- Organize apps into groups; pin favorites and browse recent launches.
+- Discover macOS applications and Windows Start Menu / UWP applications.
+- Display native app icons, with a placeholder when extraction is unavailable.
+- Add custom local paths and launch arguments; edit notes and hide unwanted entries.
+- Switch between English and Simplified Chinese, or follow your system language.
+- Keep app data on your device. No account or remote service is needed to launch apps.
 
-## Download and platform status
+## Download and install
 
-Download published installers from [Releases](https://github.com/piercezzs/app-launcher/releases).
-Before the first release, CI installers are available as signed-in GitHub workflow
-artifacts from [Actions](https://github.com/piercezzs/app-launcher/actions).
+Get the installer for your computer from [Releases](https://github.com/piercezzs/app-launcher/releases).
+Expand **Assets** on a release page; the source ZIP/TAR archives are not installers.
 
-| Platform | Build target | Acceptance status |
-| --- | --- | --- |
-| macOS Apple Silicon | `aarch64-apple-darwin` | Prior local runtime evidence; ongoing visual acceptance |
-| macOS Intel | `x86_64-apple-darwin` | Build target; physical Intel acceptance pending |
-| Windows x64 | `x86_64-pc-windows-msvc` | Implemented; real-host scan, icons, launch and window acceptance pending |
+| Computer | Installer |
+| --- | --- |
+| Mac with Apple Silicon (M-series) | `*_aarch64.dmg` |
+| Mac with an Intel processor | `*_x64.dmg` |
+| Windows x64 | `*_x64-setup.exe` |
 
-Linux and mobile applications are not supported. Platform-specific build success
-does not establish runtime acceptance on that platform.
+On macOS, open the DMG and drag the app into Applications. On Windows, run the
+installer and follow its prompts. Linux and mobile are not supported.
 
-Current CI macOS packages use ad-hoc signing and are **not notarized**. Windows
-installers are **not Authenticode-signed**. Downloaded packages can trigger system
-security prompts; do not disable system security globally. Developer ID signing,
-notarization, and Windows publisher signing are separate release tasks.
+**Release status:** v0.2.0 is a public preview with bilingual settings and background
+application scanning. The earlier v0.1.0 installers do not include language switching.
+See [Releases](https://github.com/piercezzs/app-launcher/releases) for available installers.
 
-In-app updates are not implemented yet. Install a newer release manually.
+macOS packages use ad-hoc signing and are **not notarized**. Windows installers
+are **not publisher-signed**. Your operating system may warn or block them.
+Do not disable system security globally. Official signing and notarization remain
+separate release work. In-app automatic updates are not implemented; download and
+install newer releases manually.
+
+Native builds are configured for all three targets. macOS Apple Silicon has local
+runtime evidence. Full Windows scan/icon/launch/window acceptance and physical
+Intel Mac acceptance remain pending; build success alone does not establish them.
+
+## Language
+
+![App Launcher global language settings on macOS](docs/images/settings-en.jpg)
+
+Open **Settings** in the top-right corner and choose a language:
+
+- **System**: follow the primary language preference exposed by the system WebView.
+  Chinese variants use Simplified Chinese; other languages fall back to English.
+- **简体中文** or **English**: apply an explicit choice immediately.
+
+The choice is stored locally and restored on restart. Switching keeps your search
+and selection. Dates, relative times, built-in categories, and
+name-sort tie-breaks follow the selected language. Your app names, groups, notes,
+and paths are not translated or rewritten.
 
 ## Development
 
 Install Node.js 22 (22.12 or later), pnpm 10.25.0, Rust, and the
 [Tauri platform prerequisites](https://v2.tauri.app/start/prerequisites/).
-macOS requires Xcode command-line tools. Windows requires MSVC C++ build tools
-and WebView2.
+macOS needs Xcode command-line tools. Windows needs MSVC C++ build tools and WebView2.
+CI uses Rust 1.96.0.
 
-Run from the repository root:
+From the repository root:
 
 ```sh
 pnpm install --frozen-lockfile
@@ -57,53 +96,72 @@ Build a native installer on its supported host:
 pnpm build
 ```
 
-The app frontend development port is `1430`. A renderer-only preview is available
-with `pnpm --filter app-launcher dev`, but native scan/launch commands require
-the Tauri runtime.
+For a verified local macOS `.app` (current Mac architecture), run from the repository root:
 
-## Repository layout
-
-```text
-apps/app-launcher/   React frontend and application-local Tauri/Rust shell
-packages/ui/        UI components maintained only by this repository
-docs/               Architecture, release process, and acceptance boundaries
-.github/workflows/  Native checks, installers, and draft releases
+```sh
+pnpm desktop:build:local
 ```
 
-This is an independent repository with a fresh history. The UI package was copied
-at the extraction boundary and is now maintained independently. Its internal
-`@tessera/ui` package name is retained for import compatibility; it has no runtime
-dependency on another checkout and is not synchronized with another repository.
+This builds the frontend and Rust app, applies an ad-hoc signature, verifies the
+signature, and compares bundled license files with their sources. Any failed step
+stops the command with a nonzero exit code. The verified output path is printed at
+the end; the first build for an explicit architecture may take longer.
+This local command does not notarize, install, upload, or publish the app.
+
+`pnpm test` runs the language tests and Rust tests. The frontend development port
+is `1430`. `pnpm --filter app-launcher dev` starts a renderer-only preview; native
+scan and launch actions require the Tauri runtime.
+
+## Repository and translation maintenance
+
+```text
+apps/app-launcher/             React frontend and Tauri/Rust shell
+apps/app-launcher/src/locales/ English and Simplified Chinese dictionaries
+packages/ui/                  Repository-local UI components
+docs/images/                  Native application screenshots
+.github/workflows/            Checks, installers, and draft releases
+```
+
+Maintain both dictionaries together. Use translation keys and interpolation for
+interface copy, and preserve plural forms. Keep this README and `README.zh-CN.md`
+aligned, including screenshots, download status, and known limitations. See
+[localization notes](docs/localization.md) and [release instructions](docs/releasing.md).
+
+This is an independent repository. Its internal `@tessera/ui` name is retained for
+import compatibility; the package is maintained here and is not synchronized with
+another repository.
 
 ## Local data and privacy
 
-Rust owns three JSON files in the operating system's application-data directory,
-under `launcher/`: `device.json` (custom entries), `overlay.json` (groups and user
-overrides), and `scan_cache.json` (rebuildable discovery data). The application
-identifier remains `com.tessera.app-launcher` to preserve existing installations.
+App records live in the operating system's app-data directory, under `launcher/`:
+`device.json` (custom entries), `overlay.json` (groups and overrides), and
+`scan_cache.json` (rebuildable discovery data). The identifier remains
+`com.tessera.app-launcher` for installation and data continuity.
 
-Installed paths, icons, groups, and launch history stay on the device. This app
-does not provide telemetry, an account service, or automatic updates. Scanning
-uses local system tools and APIs; a missing application never triggers a download.
-GitHub downloads are governed by GitHub's own policies.
+The language preference uses the application's local WebView storage, separately
+from app records. Installed paths, groups, icons, and launch history stay on the
+device. There is no telemetry or account service. Translation dictionaries ship
+with the app and work offline. Missing apps never trigger remote downloads.
+GitHub downloads are governed by GitHub's policies.
 
 ## Known limitations
 
-- Drag-and-drop ordering and macOS Assets.car-only icons are not implemented.
-- Windows coverage, icons, UWP launch, permission behavior, and window interactions
-  still require real Windows acceptance.
-- Data backup is currently manual; stop the application before copying its data.
+- Drag-and-drop ordering and macOS Assets.car-only icon extraction are not implemented.
+- Full target-host acceptance and production signing remain pending as described above.
+- Backups are manual; stop the app before copying its data. Backing up only the
+  three JSON files does not include the separate WebView language preference.
 
-See [architecture](docs/architecture.md) and [release instructions](docs/releasing.md).
-Report reproducible bugs through [Issues](https://github.com/piercezzs/app-launcher/issues).
+See [architecture and acceptance](docs/architecture.md). For bugs, include your
+platform, app version, interface language, and steps to reproduce in an
+[issue](https://github.com/piercezzs/app-launcher/issues), without private paths or credentials.
 
 ## License
 
-Copyright (c) 2026 piercezzs. Original project code is licensed under the
-GNU General Public License version 3 only (`GPL-3.0-only`); see [LICENSE](LICENSE).
-You may use, modify, and redistribute it under those terms. It is provided without
-warranty. Third-party components retain their own licenses and notices; see
+Copyright (c) 2026 piercezzs. Original code is licensed under the GNU General Public
+License version 3 only (`GPL-3.0-only`); see [LICENSE](LICENSE). Use, modification,
+and redistribution are subject to those terms. The software comes without warranty.
+Third-party components retain their own licenses; see
 [THIRD_PARTY_NOTICES.txt](THIRD_PARTY_NOTICES.txt).
 
-Binary releases must provide access to the matching complete corresponding source,
-including the build configuration and this repository's UI package.
+Binary releases must provide access to matching complete corresponding source,
+including build configuration and this repository's UI package.

@@ -1,6 +1,6 @@
 [package]
 name = "app_launcher"
-version = "0.1.0"
+version = "0.2.0"
 description = "App Launcher - local application launcher"
 authors = ["piercezzs"]
 license = "GPL-3.0-only"
@@ -26,6 +26,7 @@ windows-sys = { version = "0.59", features = [
   "Win32_Foundation",
   "Win32_Graphics_Gdi",
   "Win32_Storage_FileSystem",
+  "Win32_System_Com",
   "Win32_UI_Shell",
   "Win32_UI_WindowsAndMessaging"
 ] }

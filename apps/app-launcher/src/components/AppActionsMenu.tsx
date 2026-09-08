@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import { t } from "../i18n";
 import { Check, FolderOpen, MoreHorizontal, Pin, PinOff, Trash2, X } from "@tessera/ui";
 import { createPortal } from "react-dom";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -37,6 +39,7 @@ export function AppActionsMenu({
   onRemove,
   onRestore,
 }: AppActionsMenuProps) {
+  const { i18n } = useTranslation();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState<MenuPosition>({ top: 0, left: 0 });
@@ -64,7 +67,7 @@ export function AppActionsMenu({
       window.removeEventListener("resize", updatePosition);
       window.removeEventListener("scroll", updatePosition, true);
     };
-  }, [open]);
+  }, [open, i18n.resolvedLanguage]);
 
   useEffect(() => {
     if (!open) return;
@@ -111,8 +114,8 @@ export function AppActionsMenu({
         ref={triggerRef}
         type="button"
         className="row-more-button"
-        aria-label={`${app.name}的更多操作`}
-        title="更多操作"
+        aria-label={t("actions.namedMore", { name: app.name })}
+        title={t("actions.more")}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => onOpenChange(!open)}
@@ -131,20 +134,20 @@ export function AppActionsMenu({
           ref={menuRef}
           className="app-action-menu"
           role="menu"
-          aria-label={`${app.name}操作`}
+          aria-label={t("actions.namedMenu", { name: app.name })}
           style={{ top: position.top, left: position.left }}
           onKeyDown={handleMenuKeyDown}
         >
           {app.hidden ? (
-            <MenuItem icon={<Check size={15} />} disabled={busy} onClick={onRestore}>恢复应用</MenuItem>
+            <MenuItem icon={<Check size={15} />} disabled={busy} onClick={onRestore}>{t("app.restore")}</MenuItem>
           ) : (
             <>
-              <MenuItem icon={<MoreHorizontal size={15} />} onClick={onEdit}>编辑信息</MenuItem>
+              <MenuItem icon={<MoreHorizontal size={15} />} onClick={onEdit}>{t("actions.edit")}</MenuItem>
               <MenuItem icon={<FolderOpen size={15} />} disabled={!app.path || openingLocation} onClick={onOpenLocation}>
-                {openingLocation ? "正在打开…" : "打开所在文件夹"}
+                {openingLocation ? t("actions.opening") : t("actions.openFolder")}
               </MenuItem>
               <MenuItem icon={app.pinned ? <PinOff size={15} /> : <Pin size={15} />} disabled={busy} onClick={onTogglePin}>
-                {app.pinned ? "取消快捷启动" : "固定到快捷启动"}
+                {app.pinned ? t("actions.unpin") : t("actions.pin")}
               </MenuItem>
               <MenuItem
                 icon={app.source === "custom" ? <Trash2 size={15} /> : <X size={15} />}
@@ -152,7 +155,7 @@ export function AppActionsMenu({
                 danger
                 onClick={onRemove}
               >
-                {app.source === "custom" ? "移除应用" : "隐藏应用"}
+                {app.source === "custom" ? t("actions.remove") : t("actions.hide")}
               </MenuItem>
             </>
           )}

@@ -1,7 +1,7 @@
 {
   "name": "app-launcher",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -11,13 +11,16 @@
     "check": "pnpm typecheck && pnpm build",
     "desktop:dev": "tauri dev",
     "desktop:build": "tauri build",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "test": "vitest run src/i18n.test.ts"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",
     "@tessera/ui": "workspace:*",
+    "i18next": "^26.4.2",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "react-i18next": "^17.0.13"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",
@@ -25,7 +28,8 @@
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.6.0",
     "typescript": "~5.8.3",
-    "vite": "^7.0.4"
+    "vite": "^7.0.4",
+    "vitest": "^5.0.0"
   },
   "license": "GPL-3.0-only",
   "author": "piercezzs"

@@ -77,6 +77,8 @@ export interface DialogProps extends PropsWithChildren {
   readonly open: boolean;
   readonly onClose: () => void;
   readonly footer?: ReactNode;
+  readonly closeLabel: string;
+  readonly feedback?: ReactNode;
   readonly onEscapeKeyDown?: ComponentPropsWithoutRef<typeof DialogPrimitiveRadix.Content>["onEscapeKeyDown"];
 }
 
@@ -84,7 +86,7 @@ export interface DialogProps extends PropsWithChildren {
  * 预设 Dialog：标题 + 滚动 body + 可选 footer。
  * 基于 Radix，自带焦点陷阱、背景滚动锁、Esc/点击遮罩关闭。
  */
-export function Dialog({ title, open, onClose, footer, onEscapeKeyDown, children }: DialogProps) {
+export function Dialog({ title, open, onClose, footer, closeLabel, feedback, onEscapeKeyDown, children }: DialogProps) {
   return (
     <DialogPrimitiveRadix.Root open={open} onOpenChange={(next) => !next && onClose()}>
       <DialogPrimitiveRadix.Portal>
@@ -95,12 +97,12 @@ export function Dialog({ title, open, onClose, footer, onEscapeKeyDown, children
               <h2>{title}</h2>
             </DialogPrimitiveRadix.Title>
             <DialogPrimitiveRadix.Close asChild>
-              <IconButton label="关闭" title={undefined}>
+              <IconButton label={closeLabel} title={undefined}>
                 <span aria-hidden>×</span>
               </IconButton>
             </DialogPrimitiveRadix.Close>
           </header>
-          <div className="ui-dialog__body">{children}</div>
+          <div className="ui-dialog__body">{feedback}{children}</div>
           {footer ? <footer className="ui-dialog__foot">{footer}</footer> : null}
         </DialogPrimitiveRadix.Content>
       </DialogPrimitiveRadix.Portal>

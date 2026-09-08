@@ -1,7 +1,7 @@
 # Builds and releases
 
 The `Desktop build` workflow runs on `main`, pull requests, manual dispatch, and
-`v*` tags. It checks the workspace, runs native Rust tests on the runner host,
+`v*` tags. It checks the workspace, runs locale tests and native Rust tests on the runner host,
 and creates macOS ARM64/Intel DMGs and Windows x64 NSIS installers. Installer
 artifacts are retained for 14 days and include license notices as separate files;
 the same notices are bundled as application resources.
@@ -10,6 +10,24 @@ Node 22, pnpm 10.25.0, and Rust 1.96.0 are pinned. JavaScript and Rust dependenc
 lockfiles are committed. Actions are pinned by commit SHA. macOS uses ad-hoc
 signing; Windows packages are unsigned. CI does not claim notarization,
 publisher identity, or real-device functional acceptance.
+
+## Local macOS verification build
+
+Run `pnpm desktop:build:local` from the repository root on macOS. The wrapper uses
+this Mac's Rust host target explicitly, reads Cargo's target directory (including
+`CARGO_TARGET_DIR`), and prints the verified `.app` path. It accepts no arguments.
+Node, pnpm, the native Rust toolchain, and Xcode command-line tools must be installed.
+
+The stages are: build the frontend/native bundle, apply ad-hoc signing, verify the
+bundle with `codesign --verify --deep --strict`, and compare bundled `LICENSE` and
+`THIRD_PARTY_NOTICES.txt` byte-for-byte with repository sources. A failed command
+or resource check stops execution and returns a nonzero exit status.
+
+Apple signing/notarization environment variables are omitted from child processes,
+and `APPLE_SIGNING_IDENTITY` is set to `-`. This is a local ad-hoc build, not a
+Developer ID-signed or notarized distribution. It neither installs nor launches the
+app and does not upload artifacts, create tags, or publish a Release. The existing
+`pnpm build` command and GitHub workflow remain the installer/release build paths.
 
 ## Create a release
 

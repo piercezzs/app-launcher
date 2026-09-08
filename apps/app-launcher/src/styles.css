@@ -847,7 +847,6 @@ html[data-platform="macos"] .window-titlebar {
 }
 
 .sidebar-motto {
-  min-height: 188px;
   margin-top: auto;
   display: flex;
   flex-direction: column;
@@ -857,15 +856,6 @@ html[data-platform="macos"] .window-titlebar {
   color: #747561;
 }
 
-.sidebar-motto__branch {
-  width: 78px;
-  height: 116px;
-  flex: 0 0 auto;
-  margin: 0 0 -9px 1px;
-  color: rgba(102, 111, 88, 0.76);
-  transform: rotate(-7deg);
-  filter: drop-shadow(2px 3px 1px rgba(70, 59, 43, 0.12));
-}
 
 .sidebar-motto p {
   margin: 0;
@@ -1482,4 +1472,61 @@ html[data-platform="macos"] .window-titlebar {
 @media (prefers-reduced-motion: reduce) {
   .pinned-app,
   .paper-select__chevron { transition: none; }
+}
+
+
+/* Locale controls and text expansion preserve the existing paper layout. */
+.titlebar-search-area { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.titlebar-search-area .titlebar-search { flex: 1; min-width: 0; }
+.titlebar-tools { display: flex; align-items: center; justify-content: flex-end; gap: 16px; min-width: 0; }
+.settings-trigger { flex: 0 0 auto; min-height: 34px; }
+.settings-backdrop { background: rgba(61, 55, 46, 0.22); }
+.ui-dialog.settings-panel { left: auto; right: 18px; top: 100px; transform: none; width: min(360px, calc(100vw - 36px)); max-height: calc(100dvh - 120px); }
+.settings-description { margin: 0 0 20px; color: #686255; font-size: 12px; line-height: 1.6; }
+.language-options { min-width: 0; padding: 0; margin: 0; border: 0; }
+.language-options legend { margin-bottom: 10px; font-size: 13px; font-weight: 600; }
+.language-option { display: flex; align-items: center; gap: 12px; padding: 12px; margin-bottom: 8px; border: 1px solid rgba(77, 69, 57, 0.24); border-radius: 5px; cursor: pointer; font-size: 13px; }
+.language-option:has(input:checked) { background: rgba(174, 184, 161, 0.38); border-color: #859177; }
+.language-option:hover { background: rgba(174, 184, 161, 0.20); }
+.language-option input { margin: 0; width: 16px; height: 16px; accent-color: #65755c; }
+.language-option input:focus-visible { outline: 2px solid #64705a; outline-offset: 3px; }
+.language-picker__error { display: block; margin-top: 12px; color: #70412f; font-size: 12px; line-height: 1.5; }
+.window-titlebar { grid-template-columns: minmax(176px, 0.82fr) minmax(180px, 1.55fr) auto 102px; }
+html[data-platform="macos"] .window-titlebar { grid-template-columns: 210px minmax(200px, 1fr) auto; }
+@media (max-width: 900px) {
+  .window-titlebar { grid-template-columns: 176px minmax(0, 1fr) auto 102px; }
+  html[data-platform="macos"] .window-titlebar { grid-template-columns: 160px minmax(0, 1fr) auto; }
+}
+@media (max-width: 680px) {
+  .window-titlebar { grid-template-columns: minmax(0, 1fr) auto 102px; }
+  html[data-platform="macos"] .window-titlebar { grid-template-columns: minmax(0, 1fr) auto; }
+  .ui-dialog.settings-panel { top: 70px; right: 12px; width: min(360px, calc(100vw - 24px)); max-height: calc(100dvh - 90px); }
+}
+.sidebar-motto p { white-space: pre-line; }
+html[lang="en"] .window-brand small { letter-spacing: 0.06em; }
+html[lang="en"] .window-motto { letter-spacing: 0; white-space: normal; }
+html[lang="en"] .sidebar-heading { letter-spacing: 0.04em; padding-inline: 2px; }
+html[lang="en"] .group-tab__label { white-space: normal; line-height: 1.3; }
+html[lang="en"] .app-table { min-width: 540px; }
+html[lang="en"] .app-table th:nth-child(1) { width: 28%; }
+html[lang="en"] .app-table th:nth-child(2) { width: 22%; }
+html[lang="en"] .app-table th:nth-child(3) { width: 18%; }
+html[lang="en"] .app-table th:nth-child(4) { width: 10%; }
+html[lang="en"] .app-table th:nth-child(5) { width: 22%; }
+html[lang="en"] .app-table th { letter-spacing: 0; white-space: normal; line-height: 1.25; }
+html[lang="en"] .date-label { white-space: normal; line-height: 1.3; }
+html[lang="en"] .app-action-item { white-space: normal; }
+html[lang="en"] .sort-switch { flex-wrap: wrap; justify-content: flex-end; }
+html[lang="en"] .rail-heading h2 { letter-spacing: 0; }
+html[lang="en"] .detail-actions > div { flex-wrap: wrap; }
+html[lang="en"] .ui-dialog__head h2 { letter-spacing: 0; }
+html[lang="en"] .toast { max-width: min(520px, calc(100vw - 32px)); white-space: normal; }
+
+.group-tab__name { min-width: 0; overflow-wrap: anywhere; }
+.dialog-feedback { margin: 0 0 12px; padding: 9px 12px; border: 1px solid #87917c; border-radius: 5px; background: #e2e6d7; color: #394432; font-size: 12px; line-height: 1.5; }
+@media (min-width: 901px) and (max-width: 1279px) {
+  html[lang="en"] .launcher-workspace { grid-template-columns: 166px minmax(0, 1fr) clamp(188px, 19.5vw, 216px); }
+}
+@media (min-width: 681px) and (max-width: 900px) {
+  html[lang="en"] .launcher-workspace { grid-template-columns: 166px minmax(0, 1fr); }
 }

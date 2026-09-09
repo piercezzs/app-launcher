@@ -55,8 +55,8 @@ version at a time. The Windows v0.3.0 preview is for clean installations;
 upgrading an existing App Launcher installation is not supported or verified.
 Keep using the previous Windows version until its migration path is verified.
 
-**Development status:** v0.4.0 adds signed in-app updates. See the
-[v0.4.0 release notes](docs/releases/v0.4.0.md) for changes and pending acceptance.
+**Development status:** v0.4.1 adds signed in-app updates. See the
+[v0.4.1 release notes](docs/releases/v0.4.1.md) for changes and pending acceptance.
 Only published assets in Releases are available for general installation.
 The earlier v0.1.0 installers do not include language switching.
 See [Releases](https://github.com/piercezzs/hatch/releases) for available installers.

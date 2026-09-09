@@ -51,7 +51,7 @@ macOS：打开 DMG，将应用拖入 Applications。Windows：运行安装程序
 **已有安装：** macOS 打开 Hatch 前请先退出 App Launcher；复制 Hatch.app 不会替换旧 App Launcher.app，请勿同时运行两个版本。
 Windows v0.3.0 预览包仅面向全新安装，尚不支持或保证从旧 App Launcher 升级；已有用户请继续使用旧版，等待迁移路径验证完成。
 
-**开发状态：** v0.4.0 新增签名应用内更新，变化和待验收边界见 [v0.4.0 发布说明](docs/releases/v0.4.0.md)。
+**开发状态：** v0.4.1 新增签名应用内更新，变化和待验收边界见 [v0.4.1 发布说明](docs/releases/v0.4.1.md)。
 实际可用安装包以 Releases 中已发布的版本为准。
 较早的 v0.1.0 安装包不包含语言切换，请从 [Releases](https://github.com/piercezzs/hatch/releases) 获取可用安装包。
 

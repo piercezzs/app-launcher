@@ -3,16 +3,21 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@tessera/ui";
 import { t, type TranslationKey } from "../i18n";
 import { updates } from "./client";
-import { downloadPercent, type UpdateFailure } from "./model";
+import { downloadPercent, type UpdateFailure, type UpdateCheckFailure } from "./model";
 
 const errors: Record<UpdateFailure, TranslationKey> = {
   initialize: "updates.error.initialize", check: "updates.error.check", download: "updates.error.download",
   install: "updates.error.install", blocked: "updates.unsaved",
 };
 
+const checkErrors: Record<UpdateCheckFailure, TranslationKey> = {
+  sourceUnavailable: "updates.error.sourceUnavailable", network: "updates.error.network",
+  invalidMetadata: "updates.error.invalidMetadata", check: "updates.error.check",
+};
+
 export function UpdateSettings({ hasUnsavedWork }: { readonly hasUnsavedWork: boolean }) {
   useTranslation();
-  const state = useSyncExternalStore(updates.subscribe, updates.getSnapshot);
+  const state = useSyncExternalStore(updates.subscribe, updates.getSnapshot, updates.getSnapshot);
   const [confirmInstall, setConfirmInstall] = useState(false);
   const section = useRef<HTMLElement>(null);
   useEffect(() => { if (confirmInstall) section.current?.querySelector<HTMLButtonElement>("[data-update-later]")?.focus(); }, [confirmInstall]);
@@ -37,7 +42,7 @@ export function UpdateSettings({ hasUnsavedWork }: { readonly hasUnsavedWork: bo
         </>}
       </div>
       {notes && (action === "available" || action === "ready") && <div className="update-settings__notes" tabIndex={0} aria-label={t("updates.notes")}>{notes.slice(0, 16000)}</div>}
-      {failure && <p className="update-settings__error" role="alert">{t(errors[failure])}</p>}
+      {failure && <p className="update-settings__error" role="alert">{t(failure === "check" ? checkErrors[state.checkFailure ?? "check"] : errors[failure])}</p>}
       {failure === "install" && state.failureDetail && <p className="update-settings__error update-settings__details">{state.failureDetail}</p>}
       {action === "ready" && hasUnsavedWork && <p className="update-settings__notice">{t("updates.unsaved")}</p>}
       {confirmInstall && action === "ready" ? <div className="update-settings__confirmation">

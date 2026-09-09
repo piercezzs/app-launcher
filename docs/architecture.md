@@ -62,6 +62,17 @@ actions. Native single-flight guards reject overlap and release on failure or
 cancellation. The frontend reconnects to in-flight native state after WebView reload.
 Only verified downloads enter ready; failed installation requires a new download.
 
+Check failures cross IPC as a bounded `code` rather than raw diagnostic strings:
+`sourceUnavailable`, `network`, `invalidMetadata`, or the generic `check` fallback.
+The frontend localizes these categories and never labels a failed check as current.
+Tauri updater 2.11 collapses non-success HTTP statuses (including 404 and 503)
+into `ReleaseNotFound`, so the UI says the update source is unavailable without
+claiming the user's network failed or that a release is definitely unpublished.
+Transport/decode/schema/target failures remain distinct where the library exposes
+them. A retry clears the prior error; only a successful check with no candidate
+reports the installed version is current. The stable feed, prerelease filtering,
+signature checks, download URL restrictions, and check cadence are unchanged.
+
 Installation drains the existing store transaction mutex and prevents new writes.
 JSON files retain their formats and now use atomic temporary-file replacement.
 macOS additionally backs up the current app bundle before calling the installer,

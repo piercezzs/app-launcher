@@ -19,6 +19,7 @@ export interface UpdatePreferences {
   readonly automatic: boolean;
   readonly lastAttempt: number;
 }
+export type UpdateCheckFailure = "sourceUnavailable" | "network" | "invalidMetadata" | "check";
 export type UpdateFailure = "initialize" | "check" | "download" | "install" | "blocked";
 export interface UpdateSnapshot {
   readonly native: NativeUpdateStatus;
@@ -27,6 +28,7 @@ export interface UpdateSnapshot {
   readonly checked: boolean;
   readonly busy: boolean;
   readonly failure: UpdateFailure | null;
+  readonly checkFailure: UpdateCheckFailure | null;
   readonly failureDetail: string | null;
   readonly preferenceSaveFailed: boolean;
 }
@@ -58,10 +60,16 @@ export function downloadPercent(value: UpdateProgress): number | undefined {
   return Math.max(0, Math.min(100, Math.floor(value.downloadedBytes / value.totalBytes * 100)));
 }
 
+function readCheckFailure(error: unknown): UpdateCheckFailure {
+  if (!error || typeof error !== "object" || Array.isArray(error)) return "check";
+  const code = (error as Record<string, unknown>).code;
+  return code === "sourceUnavailable" || code === "network" || code === "invalidMetadata" ? code : "check";
+}
+
 export function createUpdateController(transport: UpdateTransport, storage: PreferenceStorage, now: () => number = Date.now) {
   let snapshot: UpdateSnapshot = {
     native: { configured: false, currentVersion: "", phase: "idle", update: null, downloadedBytes: 0, totalBytes: null },
-    preferences: readUpdatePreferences(storage), initialized: false, checked: false, busy: false, failure: null, failureDetail: null, preferenceSaveFailed: false,
+    preferences: readUpdatePreferences(storage), initialized: false, checked: false, busy: false, failure: null, checkFailure: null, failureDetail: null, preferenceSaveFailed: false,
   };
   const listeners = new Set<() => void>();
   let initialization: Promise<void> | undefined;
@@ -111,17 +119,17 @@ export function createUpdateController(transport: UpdateTransport, storage: Pref
     if (automatic && snapshot.preferences.lastAttempt > 0 && elapsed >= 0 && elapsed < AUTO_CHECK_INTERVAL_MS) return;
     revision++;
     ownsOperation = true;
-    change({ busy: true, failure: null, failureDetail: null, native: { ...snapshot.native, phase: "checking", update: null, downloadedBytes: 0, totalBytes: null } });
+    change({ busy: true, checked: false, failure: null, checkFailure: null, failureDetail: null, native: { ...snapshot.native, phase: "checking", update: null, downloadedBytes: 0, totalBytes: null } });
     savePreferences({ ...snapshot.preferences, lastAttempt: now() });
     try { change({ native: await transport.check(), checked: true }); }
-    catch { change({ native: { ...snapshot.native, phase: "idle", update: null }, failure: "check", checked: false }); }
+    catch (error) { change({ native: { ...snapshot.native, phase: "idle", update: null }, failure: "check", checkFailure: readCheckFailure(error), checked: false }); }
     finally { ownsOperation = false; change({ busy: false }); }
   }
   async function download() {
     if (snapshot.busy || snapshot.native.phase !== "available") return;
     revision++;
     ownsOperation = true;
-    change({ busy: true, failure: null, failureDetail: null, native: { ...snapshot.native, phase: "downloading", downloadedBytes: 0, totalBytes: null } });
+    change({ busy: true, failure: null, checkFailure: null, failureDetail: null, native: { ...snapshot.native, phase: "downloading", downloadedBytes: 0, totalBytes: null } });
     try {
       const native = await transport.download((progress) => {
         if (snapshot.native.phase === "downloading") change({ native: { ...snapshot.native, ...progress } });
@@ -135,7 +143,7 @@ export function createUpdateController(transport: UpdateTransport, storage: Pref
     if (snapshot.busy || snapshot.native.phase !== "ready") return;
     revision++;
     ownsOperation = true;
-    change({ busy: true, failure: null, failureDetail: null, native: { ...snapshot.native, phase: "installing" } });
+    change({ busy: true, failure: null, checkFailure: null, failureDetail: null, native: { ...snapshot.native, phase: "installing" } });
     try { await transport.install(); }
     catch (error) {
       let native: NativeUpdateStatus = { ...snapshot.native, phase: "available", downloadedBytes: 0, totalBytes: null };

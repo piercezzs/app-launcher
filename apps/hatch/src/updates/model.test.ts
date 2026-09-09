@@ -11,6 +11,33 @@ function setup(overrides: Partial<UpdateTransport> = {}) {
   return { transport, storage, controller: createUpdateController(transport, storage, () => AUTO_CHECK_INTERVAL_MS * 10) };
 }
 describe("application updater lifecycle", () => {
+  it.each(["sourceUnavailable", "network", "invalidMetadata", "check"] as const)("preserves structured %s check errors without claiming current", async (code) => {
+    const { controller } = setup({ check: vi.fn().mockResolvedValueOnce(idle).mockRejectedValue({ code, detail: "private transport detail" }) });
+    await controller.check();
+    expect(controller.getSnapshot().checked).toBe(true);
+    await controller.check();
+    expect(controller.getSnapshot()).toMatchObject({ failure: "check", checkFailure: code, checked: false, busy: false, failureDetail: null });
+    expect(controller.getSnapshot().native).toMatchObject({ phase: "idle", update: null });
+  });
+  it.each([undefined, null, "network", new Error("404"), {}, { code: "unsupported" }, { code: 404 }, ["network"], { code: { value: "network" } }])("falls back safely for unknown native rejection %j", async (error) => {
+    const { controller } = setup({ check: vi.fn().mockRejectedValue(error) });
+    await controller.check();
+    expect(controller.getSnapshot()).toMatchObject({ failure: "check", checkFailure: "check", checked: false, failureDetail: null });
+  });
+  it("clears check errors while retrying and reports current only after a successful empty response", async () => {
+    let finish!: (value: NativeUpdateStatus) => void;
+    const check = vi.fn().mockRejectedValueOnce({ code: "sourceUnavailable" }).mockImplementation(() => new Promise<NativeUpdateStatus>((resolve) => { finish = resolve; }));
+    const { controller } = setup({ check });
+    await controller.check();
+    const retry = controller.check();
+    await Promise.resolve();
+    expect(controller.getSnapshot()).toMatchObject({ failure: null, checkFailure: null, checked: false, busy: true });
+    expect(controller.getSnapshot().native.phase).toBe("checking");
+    finish(idle); await retry;
+    expect(controller.getSnapshot()).toMatchObject({ failure: null, checkFailure: null, checked: true, busy: false });
+    expect(controller.getSnapshot().native).toMatchObject({ phase: "idle", update: null });
+  });
+
   it("single-flights reconnect polls and reattaches to the native offer", async () => {
     let finish!: (value: NativeUpdateStatus) => void;
     const status = vi.fn().mockResolvedValueOnce({ ...available, phase: "downloading" }).mockImplementation(() => new Promise<NativeUpdateStatus>((resolve) => { finish = resolve; }));

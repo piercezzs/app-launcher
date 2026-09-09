@@ -49,6 +49,59 @@ fn is_public_key(encoded: &str) -> bool {
 const UPDATE_ENDPOINT: &str =
     "https://raw.githubusercontent.com/piercezzs/hatch/updates/stable.json";
 
+/// Stable IPC categories: do not expose raw transport errors or device paths.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+enum CheckFailureCode {
+    SourceUnavailable,
+    Network,
+    InvalidMetadata,
+    Check,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CheckFailure {
+    code: CheckFailureCode,
+}
+
+impl From<String> for CheckFailure {
+    fn from(_: String) -> Self {
+        Self {
+            code: CheckFailureCode::Check,
+        }
+    }
+}
+
+fn classify_check_error(error: tauri_plugin_updater::Error) -> CheckFailure {
+    use tauri_plugin_updater::Error;
+    let code = match error {
+        // Updater 2.11 discards non-success HTTP status codes. A 404 and a 503
+        // both surface here; neither proves "no newer version" or "unpublished".
+        Error::ReleaseNotFound => CheckFailureCode::SourceUnavailable,
+        Error::Reqwest(error) if error.is_decode() => CheckFailureCode::InvalidMetadata,
+        Error::Reqwest(error) if error.is_builder() => CheckFailureCode::Check,
+        Error::Reqwest(_) => CheckFailureCode::Network,
+        Error::Serialization(_)
+        | Error::Semver(_)
+        | Error::TargetNotFound(_)
+        | Error::TargetsNotFound(_) => CheckFailureCode::InvalidMetadata,
+        _ => CheckFailureCode::Check,
+    };
+    CheckFailure { code }
+}
+
+async fn check_candidate(
+    updater: &tauri_plugin_updater::Updater,
+) -> Result<Option<Update>, CheckFailure> {
+    let candidate = updater.check().await.map_err(classify_check_error)?;
+    if let Some(update) = candidate.as_ref() {
+        validate_download_url(update.download_url.as_str()).map_err(|_| CheckFailure {
+            code: CheckFailureCode::InvalidMetadata,
+        })?;
+    }
+    Ok(candidate)
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum UpdatePhase {
@@ -189,9 +242,11 @@ pub fn update_status(
 pub async fn check_update(
     app: AppHandle,
     state: State<'_, UpdateState>,
-) -> Result<UpdateStatus, String> {
+) -> Result<UpdateStatus, CheckFailure> {
     if !is_configured(app.config()) {
-        return Err("Automatic updates are not configured in this build".into());
+        return Err(CheckFailure {
+            code: CheckFailureCode::Check,
+        });
     }
     let operation = state.begin(UpdatePhase::Checking)?;
     {
@@ -214,19 +269,15 @@ pub async fn check_update(
         })
         .build()
         .map_err(|err| err.to_string())?;
-    let candidate = updater
-        .check()
-        .await
-        .map_err(|err| format!("Could not check for updates: {err}"))?;
-    if let Some(update) = candidate.as_ref() {
-        validate_download_url(update.download_url.as_str())?;
-    }
+    let candidate = check_candidate(&updater).await?;
     state.lock()?.candidate = candidate;
     drop(operation);
-    state.status(
-        app.package_info().version.to_string(),
-        is_configured(app.config()),
-    )
+    state
+        .status(
+            app.package_info().version.to_string(),
+            is_configured(app.config()),
+        )
+        .map_err(CheckFailure::from)
 }
 
 fn validate_download_url(url: &str) -> Result<(), String> {
@@ -607,12 +658,142 @@ mod tests {
                 .unwrap();
             let state = UpdateState::default();
             let operation = state.begin(UpdatePhase::Checking).unwrap();
-            assert!(updater.check().await.is_err());
+            assert_eq!(
+                check_candidate(&updater)
+                    .await
+                    .err()
+                    .expect("check must fail")
+                    .code,
+                CheckFailureCode::SourceUnavailable
+            );
             drop(operation);
             let _retry = state.begin(UpdatePhase::Checking).unwrap();
-            assert!(updater.check().await.unwrap().is_none());
+            assert!(check_candidate(&updater).await.unwrap().is_none());
         });
         server.join().unwrap();
+    }
+
+    #[test]
+    fn real_http_failures_have_stable_ipc_categories_and_allow_retry() {
+        let app = test_app();
+        let manifest = |value: serde_json::Value| serde_json::to_vec(&value).unwrap();
+        let cases = vec![
+            (
+                404,
+                b"Not Found".to_vec(),
+                CheckFailureCode::SourceUnavailable,
+            ),
+            (
+                503,
+                b"Unavailable".to_vec(),
+                CheckFailureCode::SourceUnavailable,
+            ),
+            (
+                200,
+                b"<html>Bad gateway</html>".to_vec(),
+                CheckFailureCode::InvalidMetadata,
+            ),
+            (
+                200,
+                manifest(serde_json::json!({"version":"invalid"})),
+                CheckFailureCode::InvalidMetadata,
+            ),
+            (
+                200,
+                manifest(serde_json::json!({"version":"99.0.0","platforms":{}})),
+                CheckFailureCode::InvalidMetadata,
+            ),
+            (
+                200,
+                manifest(
+                    serde_json::json!({"version":"99.0.0","url":"https://example.com/package","signature":"fixture"}),
+                ),
+                CheckFailureCode::InvalidMetadata,
+            ),
+        ];
+        let responses = cases
+            .iter()
+            .map(|(status, body, _)| (*status, body.clone()))
+            .chain(std::iter::once((204, Vec::new())))
+            .collect();
+        let (address, server) = serve_responses(|_| responses);
+        tauri::async_runtime::block_on(async {
+            let updater = app
+                .updater_builder()
+                .endpoints(vec![address.parse().unwrap()])
+                .unwrap()
+                .no_proxy()
+                .timeout(Duration::from_secs(3))
+                .build()
+                .unwrap();
+            let state = UpdateState::default();
+            for (_, _, expected) in cases {
+                let operation = state.begin(UpdatePhase::Checking).unwrap();
+                let failure = check_candidate(&updater)
+                    .await
+                    .err()
+                    .expect("check must fail");
+                assert_eq!(failure.code, expected);
+                let encoded = serde_json::to_value(&failure).unwrap();
+                assert_eq!(encoded.as_object().unwrap().len(), 1);
+                assert!(encoded["code"].is_string());
+                drop(operation);
+                assert_eq!(state.lock().unwrap().phase(), UpdatePhase::Idle);
+                assert!(state.lock().unwrap().candidate.is_none());
+            }
+            assert!(check_candidate(&updater).await.unwrap().is_none());
+        });
+        server.join().unwrap();
+    }
+
+    #[test]
+    fn stalled_connection_is_network_failure_not_missing_release() {
+        let app = test_app();
+        // Keep the listener open without replying: deterministic request timeout.
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = format!("http://{}", listener.local_addr().unwrap());
+        tauri::async_runtime::block_on(async {
+            let updater = app
+                .updater_builder()
+                .endpoints(vec![address.parse().unwrap()])
+                .unwrap()
+                .no_proxy()
+                .timeout(Duration::from_millis(100))
+                .build()
+                .unwrap();
+            assert_eq!(
+                check_candidate(&updater)
+                    .await
+                    .err()
+                    .expect("check must fail")
+                    .code,
+                CheckFailureCode::Network
+            );
+        });
+    }
+
+    #[test]
+    fn unknown_internal_errors_do_not_leak_through_ipc() {
+        let failure = CheckFailure::from("internal path or transport details".to_string());
+        assert_eq!(
+            serde_json::to_value(failure).unwrap(),
+            serde_json::json!({"code":"check"})
+        );
+        for (error, code) in [
+            (
+                tauri_plugin_updater::Error::ReleaseNotFound,
+                "sourceUnavailable",
+            ),
+            (
+                tauri_plugin_updater::Error::TargetNotFound("fixture".into()),
+                "invalidMetadata",
+            ),
+        ] {
+            assert_eq!(
+                serde_json::to_value(classify_check_error(error)).unwrap(),
+                serde_json::json!({"code":code})
+            );
+        }
     }
 
     #[test]

@@ -5,7 +5,7 @@ export interface LauncherApp {
   readonly args: string;
   readonly bundleId: string;
   readonly aumid: string;
-  readonly source: "mac_app" | "start_menu" | "uwp" | "custom" | "unsupported";
+  readonly source: "mac_app" | "start_menu" | "desktop" | "taskbar" | "app_paths" | "uninstall_registry" | "start_apps" | "uwp" | "custom" | "unsupported";
   readonly group: string;
   readonly note: string;
   readonly pinned: boolean;

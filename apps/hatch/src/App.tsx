@@ -635,6 +635,11 @@ function sourceLabel(app: LauncherApp): string {
   if (app.source === "custom") return t("source.custom");
   if (app.source === "uwp") return t("source.store");
   if (app.source === "start_menu") return t("source.startMenu");
+  if (app.source === "desktop") return t("source.desktop");
+  if (app.source === "taskbar") return t("source.taskbar");
+  if (app.source === "app_paths") return t("source.appPaths");
+  if (app.source === "uninstall_registry") return t("source.registry");
+  if (app.source === "start_apps") return t("source.startApps");
   return t("source.installed");
 }
 

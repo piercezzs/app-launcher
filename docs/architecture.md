@@ -33,8 +33,8 @@ rebrand. Installer upgrade detection is a separate platform boundary; see
 [the branding transition](releasing.md#hatch-branding-transition).
 
 macOS uses system metadata/icon tools and `/usr/bin/open`. Its platform config
-enables native window decorations. Windows uses Start Menu shortcuts,
-PowerShell `Get-StartApps`, Shell/GDI APIs, and UWP AUMIDs; the base window config
+enables native window decorations. Windows uses Start Menu, desktop and taskbar shortcuts, App Paths, conservative
+uninstall-registry evidence, PowerShell `Get-StartApps`, Shell/GDI APIs, and UWP AUMIDs; the base window config
 uses custom title-bar controls. These platform differences are intentional.
 
 ## Acceptance still required
@@ -75,3 +75,45 @@ Application ID, language key, groups, pinned items, custom entries, and launcher
 JSON locations are unchanged. Downloads stay in memory and are not resumed across
 process restarts. There is no frontend code hot-update mechanism. See
 [release setup and acceptance](releasing.md#updater-signing-and-first-installation).
+
+## Windows discovery and cache recovery
+
+The embedded `src-tauri/src/windows_scan.ps1` is application-local, read-only
+scanner code. It never launches candidates or executes uninstall commands. It
+accepts only existing local absolute EXE paths; network and relative discovery
+paths are skipped. Explicit shortcuts take precedence over registry candidates.
+Uninstall records need a unique exact normalized product/EXE-name match; ambiguous
+or weak evidence is skipped. Portable folders remain manually added custom apps.
+
+The native worker invokes system Windows PowerShell without a console window,
+using a temporary script with UTF-8 BOM for Windows PowerShell 5.1. Process output
+and execution time are bounded; temporary files and child processes are cleaned
+on success or failure. This flag applies only to discovery, not applications the
+user deliberately launches. No PowerShell scanning runs on macOS.
+
+The scanner reports items and failed source categories separately. Any failed
+source, malformed response, process failure, or timeout rejects the refresh and
+leaves the old cache untouched; the UI receives a retryable error. A complete
+successful scan can legitimately remove entries, including returning zero apps.
+This is conservative all-or-nothing cache replacement, not a partial merge based
+on app counts. A version mismatch remains pending after failure so the next load
+can retry. macOS retains its existing scanner and cache version.
+
+Windows IDs distinguish full EXE paths, case-sensitive raw argument strings and
+working directories. Old IDs are reused only for unique cached path/argument or
+AUMID matches; a missing legacy working directory is compatible only when the
+match is unique. Ambiguous entries keep new IDs; saved overrides are never
+removed or reassigned by EXE basename. Scanned workingDirectory is an optional,
+backward-compatible cache field. User groups, overrides and custom-entry formats
+retain their ownership and storage locations. Shortcut arguments are passed as a
+raw Windows command line and their working directory is respected. A discovered
+EXE with no explicit working directory uses its parent directory. Custom non-EXE
+launch behavior is unchanged.
+
+Run `scripts/windows/test-app-discovery.ps1` on Windows PowerShell 5.1 for
+isolated fixture coverage; CI runs it on the Windows runner. Run
+`scripts/windows/diagnose-app-discovery.ps1` for a read-only JSON report of current
+sources and failures. Reports contain local application paths; review them before
+sharing. Native Windows acceptance must still cover initial startup and refresh
+without console flashes, real application discovery/icons/launch, quoted arguments,
+working directories, standard-user access, and preservation of saved preferences.

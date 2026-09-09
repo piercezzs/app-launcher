@@ -1,5 +1,9 @@
 mod launcher;
+#[cfg(any(target_os = "windows", test))]
+mod scan_process;
 mod updater;
+#[cfg(any(target_os = "windows", test))]
+mod windows_discovery;
 
 pub fn run() {
     let context = tauri::generate_context!();

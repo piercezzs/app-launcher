@@ -14,6 +14,9 @@ use std::{
 };
 use tauri::{AppHandle, Manager};
 
+#[cfg(target_os = "windows")]
+const CACHE_VERSION: u16 = 7;
+#[cfg(not(target_os = "windows"))]
 const CACHE_VERSION: u16 = 6;
 
 #[derive(Debug, Clone, Serialize)]
@@ -23,6 +26,7 @@ pub struct LauncherApp {
     name: String,
     path: String,
     args: String,
+    working_directory: String,
     bundle_id: String,
     aumid: String,
     source: String,
@@ -59,6 +63,8 @@ struct ScannedApp {
     path: String,
     #[serde(default)]
     args: String,
+    #[serde(default)]
+    working_directory: String,
     #[serde(default)]
     bundle_id: String,
     #[serde(default)]
@@ -209,7 +215,7 @@ pub async fn list_apps(app: AppHandle, force: bool) -> Result<LauncherState, Str
         load_apps(&store, force, || {
             #[cfg(target_os = "windows")]
             let _com = WindowsComGuard::initialize()?;
-            Ok(scan_installed_apps())
+            scan_installed_apps()
         })
     })
     .await
@@ -227,9 +233,12 @@ fn load_apps(
     };
     let needs_scan = force || cache.version != CACHE_VERSION || cache.apps.is_empty();
     if needs_scan {
+        let discovered = discover()?;
+        #[cfg(target_os = "windows")]
+        let discovered = reconcile_windows_ids(discovered, &cache.apps);
         cache = ScanCache {
             version: CACHE_VERSION,
-            apps: discover()?,
+            apps: discovered,
         };
     }
     let (overlay, device) = {
@@ -453,6 +462,68 @@ pub fn migrate_group(app: AppHandle, from: String, to: String) -> Result<usize, 
     Ok(count)
 }
 
+#[cfg(any(target_os = "windows", test))]
+fn reconcile_windows_ids(mut apps: Vec<ScannedApp>, previous: &[ScannedApp]) -> Vec<ScannedApp> {
+    use crate::windows_discovery::normalize_path;
+    let key = |app: &ScannedApp| {
+        if !app.aumid.is_empty() {
+            ("uwp".to_string(), app.aumid.to_lowercase(), String::new())
+        } else {
+            (
+                "exe".to_string(),
+                normalize_path(&app.path),
+                app.args.clone(),
+            )
+        }
+    };
+    let mut claimed: HashSet<String> = apps.iter().map(|app| app.id.clone()).collect();
+    for index in 0..apps.len() {
+        let app = &apps[index];
+        if app.source == "mac_app" || (app.path.is_empty() && app.aumid.is_empty()) {
+            continue;
+        }
+        let identity = key(app);
+        let matches: Vec<_> = previous
+            .iter()
+            .filter(|old| {
+                key(old) == identity
+                    && (old.working_directory.is_empty()
+                        || normalize_path(&old.working_directory)
+                            == normalize_path(&app.working_directory))
+            })
+            .collect();
+        if matches.len() != 1 {
+            continue;
+        }
+        let old = matches[0];
+        // Known working directories use the full launch target. Only legacy
+        // records with no directory need uniqueness across path+arguments.
+        let compatible_new = apps
+            .iter()
+            .filter(|new| {
+                key(new) == identity
+                    && (old.working_directory.is_empty()
+                        || normalize_path(&new.working_directory)
+                            == normalize_path(&old.working_directory))
+            })
+            .count();
+        if compatible_new != 1
+            || previous
+                .iter()
+                .filter(|candidate| candidate.id == old.id)
+                .count()
+                != 1
+            || (old.id != app.id && claimed.contains(&old.id))
+        {
+            continue;
+        }
+        claimed.remove(&apps[index].id);
+        claimed.insert(old.id.clone());
+        apps[index].id = old.id.clone();
+    }
+    apps
+}
+
 fn build_state(overlay: &OverlayData, device: &DeviceData, cache: &ScanCache) -> LauncherState {
     let mut apps = Vec::new();
 
@@ -463,6 +534,7 @@ fn build_state(overlay: &OverlayData, device: &DeviceData, cache: &ScanCache) ->
             &custom.name,
             &custom.path,
             &custom.args,
+            "",
             "",
             "",
             "custom",
@@ -478,6 +550,7 @@ fn build_state(overlay: &OverlayData, device: &DeviceData, cache: &ScanCache) ->
             &scanned.name,
             &scanned.path,
             &scanned.args,
+            &scanned.working_directory,
             &scanned.bundle_id,
             &scanned.aumid,
             &scanned.source,
@@ -505,6 +578,7 @@ fn to_launcher_app(
     name: &str,
     path: &str,
     args: &str,
+    working_directory: &str,
     bundle_id: &str,
     aumid: &str,
     source: &str,
@@ -519,6 +593,7 @@ fn to_launcher_app(
             .unwrap_or_else(|| name.to_string()),
         path: path.to_string(),
         args: args.to_string(),
+        working_directory: working_directory.to_string(),
         bundle_id: bundle_id.to_string(),
         aumid: aumid.to_string(),
         source: source.to_string(),
@@ -605,7 +680,7 @@ fn open_launcher_app_location(target: LauncherApp) -> Result<(), String> {
     }
 }
 
-fn scan_installed_apps() -> Vec<ScannedApp> {
+fn scan_installed_apps() -> Result<Vec<ScannedApp>, String> {
     #[cfg(target_os = "macos")]
     {
         let mut seen = HashSet::new();
@@ -618,7 +693,7 @@ fn scan_installed_apps() -> Vec<ScannedApp> {
             }
         }
         apps.sort_by(|left, right| left.name.to_lowercase().cmp(&right.name.to_lowercase()));
-        apps
+        Ok(apps)
     }
 
     #[cfg(target_os = "windows")]
@@ -628,166 +703,17 @@ fn scan_installed_apps() -> Vec<ScannedApp> {
 
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
-        Vec::new()
+        Ok(Vec::new())
     }
 }
 
 #[cfg(target_os = "windows")]
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct WindowsScanItem {
-    #[serde(default)]
-    kind: String,
-    #[serde(default)]
-    name: String,
-    #[serde(default)]
-    path: String,
-    #[serde(default)]
-    args: String,
-    #[serde(default)]
-    working_directory: String,
-    #[serde(default)]
-    aumid: String,
-    #[serde(default)]
-    icon_path: String,
-}
+const WINDOWS_SCAN_PS: &str = include_str!("windows_scan.ps1");
 
 #[cfg(target_os = "windows")]
-const WINDOWS_SCAN_PS: &str = r#"
-[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-$ErrorActionPreference = 'SilentlyContinue'
-
-function Resolve-UwpIconPath($aumid, $packagesByFamily) {
-  if (-not $aumid -or -not $aumid.Contains('!')) { return '' }
-  $parts = $aumid.Split('!', 2)
-  if ($parts.Length -lt 2) { return '' }
-  $family = $parts[0].ToLower()
-  $appId = $parts[1]
-  if (-not $packagesByFamily.ContainsKey($family)) { return '' }
-
-  $pkg = $packagesByFamily[$family]
-  if (-not $pkg.InstallLocation) { return '' }
-  $manifestPath = Join-Path $pkg.InstallLocation 'AppxManifest.xml'
-  if (-not (Test-Path -LiteralPath $manifestPath)) { return '' }
-
-  try { [xml]$manifest = Get-Content -LiteralPath $manifestPath -Raw }
-  catch { return '' }
-
-  $apps = @($manifest.Package.Applications.Application)
-  if ($apps.Count -eq 0) { return '' }
-  $app = $apps | Where-Object { $_.Id -eq $appId } | Select-Object -First 1
-  if (-not $app) { $app = $apps | Select-Object -First 1 }
-  if (-not $app.VisualElements) { return '' }
-
-  $logo = $app.VisualElements.Square44x44Logo
-  if (-not $logo) { $logo = $app.VisualElements.Logo }
-  if (-not $logo) { return '' }
-
-  $base = Join-Path $pkg.InstallLocation $logo
-  $dir = Split-Path -Parent $base
-  $leaf = [System.IO.Path]::GetFileNameWithoutExtension($base)
-  $ext = [System.IO.Path]::GetExtension($base)
-  $candidates = @(
-    (Join-Path $dir "$leaf.targetsize-256$ext"),
-    (Join-Path $dir "$leaf.targetsize-128$ext"),
-    (Join-Path $dir "$leaf.scale-400$ext"),
-    (Join-Path $dir "$leaf.scale-300$ext"),
-    (Join-Path $dir "$leaf.scale-200$ext"),
-    (Join-Path $dir "$leaf.scale-150$ext"),
-    (Join-Path $dir "$leaf.targetsize-64$ext"),
-    (Join-Path $dir "$leaf.targetsize-48$ext"),
-    $base
-  )
-  foreach ($candidate in $candidates) {
-    if ($candidate -and (Test-Path -LiteralPath $candidate)) { return $candidate }
-  }
-  $match = Get-ChildItem -LiteralPath $dir -Filter "$leaf*$ext" -ErrorAction SilentlyContinue |
-    Sort-Object Name -Descending |
-    Select-Object -First 1
-  if ($match) { return $match.FullName }
-  return ''
-}
-
-$packagesByFamily = @{}
-Get-AppxPackage | ForEach-Object {
-  if ($_.PackageFamilyName) { $packagesByFamily[$_.PackageFamilyName.ToLower()] = $_ }
-}
-
-$sh = New-Object -ComObject WScript.Shell
-$dirs = @(
-  [Environment]::GetFolderPath('CommonStartMenu'),
-  [Environment]::GetFolderPath('StartMenu')
-)
-$seen = @{}
-$result = New-Object System.Collections.ArrayList
-foreach ($d in $dirs) {
-  if (-not $d -or -not (Test-Path -LiteralPath $d)) { continue }
-  Get-ChildItem -LiteralPath $d -Recurse -Filter *.lnk -ErrorAction SilentlyContinue | ForEach-Object {
-    $lnk = $sh.CreateShortcut($_.FullName)
-    $target = $lnk.TargetPath
-    if (-not $target) { return }
-    if ([System.IO.Path]::GetExtension($target).ToLower() -ne '.exe') { return }
-    if (-not (Test-Path -LiteralPath $target)) { return }
-    $name = [System.IO.Path]::GetFileNameWithoutExtension($_.Name)
-    if ($name -match '卸载|卸載|uninstall|remove|repair|帮助|help|readme') { return }
-    $key = $target.ToLower()
-    if ($seen.ContainsKey($key)) { return }
-    $seen[$key] = $true
-    [void]$result.Add([PSCustomObject]@{
-      kind = 'exe'
-      name = $name
-      path = $target
-      args = $lnk.Arguments
-      workingDirectory = $lnk.WorkingDirectory
-      iconPath = $lnk.IconLocation
-      aumid = ''
-    })
-  }
-}
-
-Get-StartApps | ForEach-Object {
-  $aid = $_.AppID
-  if ($aid -and $aid.Contains('!')) {
-    [void]$result.Add([PSCustomObject]@{
-      kind = 'uwp'
-      name = $_.Name
-      path = ''
-      args = ''
-      workingDirectory = ''
-      iconPath = (Resolve-UwpIconPath $aid $packagesByFamily)
-      aumid = $aid
-    })
-  }
-}
-
-ConvertTo-Json -InputObject @($result) -Compress
-"#;
-
-#[cfg(target_os = "windows")]
-fn scan_windows_apps() -> Vec<ScannedApp> {
-    let encoded = encode_powershell(WINDOWS_SCAN_PS);
-    let output = Command::new("powershell.exe")
-        .args([
-            "-NoProfile",
-            "-NonInteractive",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-EncodedCommand",
-            &encoded,
-        ])
-        .output();
-
-    let Ok(output) = output else {
-        return Vec::new();
-    };
-    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    if stdout.is_empty() {
-        return Vec::new();
-    }
-
-    let Ok(items) = parse_windows_scan_items(&stdout) else {
-        return Vec::new();
-    };
+fn scan_windows_apps() -> Result<Vec<ScannedApp>, String> {
+    let stdout = crate::scan_process::run_powershell(WINDOWS_SCAN_PS)?;
+    let items = crate::windows_discovery::parse_scan(&stdout)?;
 
     let mut seen = HashSet::new();
     let mut apps = Vec::new();
@@ -811,6 +737,7 @@ fn scan_windows_apps() -> Vec<ScannedApp> {
                 name,
                 path: String::new(),
                 args: String::new(),
+                working_directory: String::new(),
                 bundle_id: String::new(),
                 aumid,
                 source: "uwp".to_string(),
@@ -833,7 +760,7 @@ fn scan_windows_apps() -> Vec<ScannedApp> {
         {
             continue;
         }
-        let id = windows_exe_id(&name, &path);
+        let id = crate::windows_discovery::exe_id(&path, &item.args, &item.working_directory);
         if !seen.insert(id.clone()) {
             continue;
         }
@@ -841,10 +768,11 @@ fn scan_windows_apps() -> Vec<ScannedApp> {
             id,
             name,
             path: path.clone(),
-            args: clean_text(&item.args),
+            args: item.args.clone(),
+            working_directory: item.working_directory.clone(),
             bundle_id: String::new(),
             aumid: String::new(),
-            source: "start_menu".to_string(),
+            source: item.source,
             icon: windows_shortcut_icon_candidate(&item.icon_path, &item.working_directory, &path)
                 .and_then(|icon_path| windows_icon_for_path(&icon_path))
                 .or_else(|| windows_icon_for_path(&path))
@@ -853,40 +781,7 @@ fn scan_windows_apps() -> Vec<ScannedApp> {
     }
 
     apps.sort_by(|left, right| left.name.to_lowercase().cmp(&right.name.to_lowercase()));
-    apps
-}
-
-#[cfg(target_os = "windows")]
-fn parse_windows_scan_items(raw: &str) -> Result<Vec<WindowsScanItem>, serde_json::Error> {
-    serde_json::from_str::<Vec<WindowsScanItem>>(raw)
-        .or_else(|_| serde_json::from_str::<WindowsScanItem>(raw).map(|single| vec![single]))
-}
-
-#[cfg(target_os = "windows")]
-fn encode_powershell(script: &str) -> String {
-    let mut bytes = Vec::with_capacity(script.len() * 2);
-    for unit in script.encode_utf16() {
-        bytes.extend_from_slice(&unit.to_le_bytes());
-    }
-    base64::engine::general_purpose::STANDARD.encode(bytes)
-}
-
-#[cfg(target_os = "windows")]
-fn windows_exe_id(name: &str, path: &str) -> String {
-    let base = Path::new(path)
-        .file_name()
-        .map(|value| value.to_string_lossy().to_lowercase())
-        .unwrap_or_default();
-    format!("exe:{}|{}", normalize_windows_name(name), base)
-}
-
-#[cfg(target_os = "windows")]
-fn normalize_windows_name(value: &str) -> String {
-    value
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
-        .to_lowercase()
+    Ok(apps)
 }
 
 #[cfg(target_os = "windows")]
@@ -1007,10 +902,27 @@ fn launch_windows_app(target: LauncherApp) -> Result<String, String> {
         return Ok(target.name);
     }
 
-    let mut command = Command::new(&target.path);
-    command.args(split_args(&target.args));
+    let mut command = if extension == "exe" {
+        windows_executable_command(&target.path, &target.args, &target.working_directory)
+    } else {
+        // Keep custom non-EXE launch behavior; raw arguments are only for EXEs.
+        let mut command = Command::new(&target.path);
+        command.args(split_args(&target.args));
+        command
+    };
     command.spawn().map_err(|err| format!("启动失败: {err}"))?;
     Ok(target.name)
+}
+
+#[cfg(target_os = "windows")]
+fn windows_executable_command(path: &str, args: &str, directory: &str) -> Command {
+    use std::os::windows::process::CommandExt;
+    let mut command = Command::new(path);
+    command.raw_arg(args);
+    if !directory.is_empty() {
+        command.current_dir(directory);
+    }
+    command
 }
 
 #[cfg(target_os = "windows")]
@@ -1430,6 +1342,7 @@ fn scanned_mac_app(path: &Path) -> Option<ScannedApp> {
         name: display_name,
         path: path.to_string_lossy().to_string(),
         args: String::new(),
+        working_directory: String::new(),
         bundle_id,
         aumid: String::new(),
         source: "mac_app".to_string(),
@@ -1656,6 +1569,7 @@ mod tests {
             name: id.into(),
             path: String::new(),
             args: String::new(),
+            working_directory: String::new(),
             bundle_id: String::new(),
             aumid: String::new(),
             source: "uwp".into(),
@@ -1773,6 +1687,122 @@ mod tests {
         let _retry = ListRequest::begin(&in_flight).expect("failure releases the request claim");
         let state = load_apps(&store.paths, true, || Ok(vec![scanned_app("replacement")])).unwrap();
         assert_eq!(state.apps[0].id, "replacement");
+    }
+
+    #[test]
+    fn windows_cache_identity_only_reuses_unambiguous_launch_targets() {
+        let make = |id: &str, path: &str, args: &str| {
+            let mut app = scanned_app(id);
+            app.source = "desktop".into();
+            app.path = path.into();
+            app.args = args.into();
+            app
+        };
+        let old = make("legacy-id", r"C:\Apps\app.exe", "--profile Work");
+        let mut new = make("new-id", "c:/apps/app.exe", "--profile Work");
+        new.working_directory = r"C:\Apps".into();
+        assert_eq!(
+            reconcile_windows_ids(vec![new.clone()], &[old.clone()])[0].id,
+            "legacy-id"
+        );
+        let other = make("other", r"D:\Apps\app.exe", "--profile Work");
+        assert_eq!(
+            reconcile_windows_ids(vec![other], &[old.clone()])[0].id,
+            "other"
+        );
+        let different_args = make("case-sensitive", &old.path, "--profile work");
+        assert_eq!(
+            reconcile_windows_ids(vec![different_args], &[old.clone()])[0].id,
+            "case-sensitive"
+        );
+        let mut second = new.clone();
+        second.id = "second".into();
+        second.working_directory = r"C:\Other".into();
+        let mut known_directory = old.clone();
+        known_directory.working_directory = new.working_directory.clone();
+        let known_result =
+            reconcile_windows_ids(vec![new.clone(), second.clone()], &[known_directory]);
+        assert_eq!(known_result[0].id, "legacy-id");
+        assert_eq!(known_result[1].id, "second");
+        let result = reconcile_windows_ids(vec![new.clone(), second], &[old.clone()]);
+        assert_eq!(result[0].id, "new-id");
+        assert_eq!(result[1].id, "second");
+        assert_eq!(
+            reconcile_windows_ids(vec![new], &[old.clone(), old])[0].id,
+            "new-id"
+        );
+    }
+
+    #[test]
+    fn protocol_failure_preserves_old_cache_but_successful_empty_scan_can_clear_it() {
+        let _test = SCAN_TESTS.lock().unwrap();
+        let store = TestStore::new();
+        write_json(
+            &store.paths.cache,
+            &ScanCache {
+                version: CACHE_VERSION - 1,
+                apps: vec![scanned_app("previous")],
+            },
+        )
+        .unwrap();
+        let before = fs::read(&store.paths.cache).unwrap();
+        for raw in [
+            "malformed",
+            r#"{"items":[],"failedSources":["start_menu"]}"#,
+        ] {
+            assert!(load_apps(&store.paths, false, || {
+                crate::windows_discovery::parse_scan(raw).map(|_| Vec::new())
+            })
+            .is_err());
+            assert_eq!(fs::read(&store.paths.cache).unwrap(), before);
+        }
+        let state = load_apps(&store.paths, false, || {
+            crate::windows_discovery::parse_scan(r#"{"items":[],"failedSources":[]}"#)
+                .map(|_| Vec::new())
+        })
+        .unwrap();
+        assert!(state.apps.is_empty());
+        let cached: ScanCache = read_json(&store.paths.cache).unwrap();
+        assert_eq!(cached.version, CACHE_VERSION);
+        assert!(cached.apps.is_empty());
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn windows_launch_preserves_quoted_argument_and_working_directory() {
+        use std::os::windows::process::CommandExt;
+        let directory = tempfile::Builder::new()
+            .prefix("hatch launch ")
+            .tempdir()
+            .unwrap();
+        let executable = std::env::current_exe().unwrap();
+        let output = windows_executable_command(
+            executable.to_str().unwrap(),
+            r#"--ignored --exact launcher::tests::windows_launch_fixture --nocapture --skip "Case Sensitive Profile""#,
+            directory.path().to_str().unwrap(),
+        ).env("HATCH_LAUNCH_FIXTURE_DIR", directory.path())
+            .creation_flags(0x08000000).output().unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stdout)
+        );
+        assert!(String::from_utf8_lossy(&output.stdout).contains("HATCH_LAUNCH_FIXTURE_OK"));
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    #[ignore = "controlled child used by windows_launch_preserves_quoted_argument_and_working_directory"]
+    fn windows_launch_fixture() {
+        let expected = std::env::var_os("HATCH_LAUNCH_FIXTURE_DIR").expect("controlled child");
+        assert_eq!(
+            std::env::current_dir().unwrap().canonicalize().unwrap(),
+            PathBuf::from(expected).canonicalize().unwrap()
+        );
+        let args: Vec<_> = std::env::args().collect();
+        let index = args.iter().position(|arg| arg == "--skip").unwrap();
+        assert_eq!(args[index + 1], "Case Sensitive Profile");
+        println!("HATCH_LAUNCH_FIXTURE_OK");
     }
 
     #[test]

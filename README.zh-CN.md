@@ -1,23 +1,27 @@
-# App Launcher
+# Hatch
+
+<img src="docs/brand/hatch-icon.png" alt="Hatch" width="128" />
+
+> Hatch 是 App Launcher 的新名称。现有 v0.1.0/v0.2.0 发布包和下方截图仍使用旧品牌；本次源码更名不会重新发布这些安装包。
 
 [English](README.md) | **简体中文**
 
 一款基于 Tauri 2、React 和 Rust 的本地应用启动器，支持 macOS 与 Windows。
 快速查找应用、整理工作空间，让日常启动更顺手。
 
-[下载安装](https://github.com/piercezzs/app-launcher/releases) ·
-[反馈问题](https://github.com/piercezzs/app-launcher/issues) ·
+[下载安装](https://github.com/piercezzs/hatch/releases) ·
+[反馈问题](https://github.com/piercezzs/hatch/issues) ·
 [版本发布指南（英文）](docs/releasing.md)
 
 ## 界面预览
 
-![App Launcher 在 macOS 上的中文主界面](docs/images/main-zh-CN.jpg)
+![更名前 App Launcher 在 macOS 上的中文主界面](docs/images/main-zh-CN.jpg)
 
 搜索、置顶应用、分组、最近使用和应用详情，集中在纸感工作界面中。
 
-![App Launcher 在 macOS 上的中文应用编辑弹窗](docs/images/edit-zh-CN.jpg)
+![更名前 App Launcher 在 macOS 上的中文应用编辑弹窗](docs/images/edit-zh-CN.jpg)
 
-截图来自当前开发版本的真实 macOS 原生窗口，使用独立数据目录及演示分组、历史记录。
+截图来自更名前版本的真实 macOS 原生窗口，使用独立数据目录及演示分组、历史记录。
 切换界面语言时，用户创建的名称、备注和路径保留原文。
 
 ## 功能
@@ -32,7 +36,7 @@
 
 ## 下载与安装
 
-进入 [Releases](https://github.com/piercezzs/app-launcher/releases)，选择适合电脑的安装包。
+进入 [Releases](https://github.com/piercezzs/hatch/releases)，选择适合电脑的安装包。
 展开版本页面中的 **Assets**；Source code ZIP/TAR 是源码压缩包，不是安装包。
 
 | 电脑类型 | 安装包 |
@@ -45,7 +49,7 @@ macOS：打开 DMG，将应用拖入 Applications。Windows：运行安装程序
 目前不支持 Linux 和移动平台。
 
 **发布状态：** v0.2.0 为公开测试版，包含中英设置和后台应用扫描。
-较早的 v0.1.0 安装包不包含语言切换，请从 [Releases](https://github.com/piercezzs/app-launcher/releases) 获取可用安装包。
+较早的 v0.1.0 安装包不包含语言切换，请从 [Releases](https://github.com/piercezzs/hatch/releases) 获取可用安装包。
 
 macOS 安装包使用临时签名，**尚未进行 Apple 公证**；Windows 安装包
 **尚未进行发布者签名**。系统可能显示提示或拦截安装、启动。请勿全局关闭系统安全保护。
@@ -57,7 +61,7 @@ Windows 扫描、图标、启动及窗口行为的完整实机验收，以及 In
 
 ## 语言切换
 
-![App Launcher 在 macOS 上的全局语言设置](docs/images/settings-zh-CN.jpg)
+![更名前 App Launcher 在 macOS 上的全局语言设置](docs/images/settings-zh-CN.jpg)
 
 打开右上角的 **设置**，选择应用语言：
 
@@ -101,13 +105,13 @@ pnpm desktop:build:local
 此本地命令不会进行 Apple 公证、安装、上传或发布。
 
 `pnpm test` 执行国际化测试及 Rust 测试。前端开发端口为 `1430`。
-`pnpm --filter app-launcher dev` 仅启动前端预览；原生扫描和启动操作需要 Tauri 运行时。
+`pnpm --filter hatch dev` 仅启动前端预览；原生扫描和启动操作需要 Tauri 运行时。
 
 ## 仓库与翻译维护
 
 ```text
-apps/app-launcher/             React 前端及 Tauri/Rust 桌面外壳
-apps/app-launcher/src/locales/ 英文、简体中文词典
+apps/hatch/                   React 前端及 Tauri/Rust 桌面外壳
+apps/hatch/src/locales/        英文、简体中文词典
 packages/ui/                  本仓库独立维护的 UI 组件
 docs/images/                  原生应用运行截图
 .github/workflows/            检查、安装包构建及 Release 草稿
@@ -125,7 +129,7 @@ docs/images/                  原生应用运行截图
 应用记录位于操作系统应用数据目录下的 `launcher/`：
 `device.json` 保存自定义条目，`overlay.json` 保存分组和用户覆盖信息，
 `scan_cache.json` 保存可重新生成的扫描缓存。
-应用标识仍为 `com.tessera.app-launcher`，以保持安装及数据连续性。
+应用标识仍为 `com.tessera.app-launcher`，以保持应用标识及数据连续性。安装器的升级识别需要单独处理，详见[品牌迁移说明（英文）](docs/releasing.md#hatch-branding-transition)。
 
 语言偏好单独保存在应用的本地 WebView 存储中。应用路径、分组、图标和启动历史留在本机。
 本工具不提供遥测或账号服务；翻译词典随应用打包，离线可用。
@@ -138,7 +142,7 @@ docs/images/                  原生应用运行截图
 - 数据备份目前需要手动执行，请先退出应用；仅备份三个 JSON 文件不包含独立的 WebView 语言偏好。
 
 更多信息见[架构与验收说明（英文）](docs/architecture.md)。反馈问题时请提供平台、应用版本、
-界面语言和复现步骤，并避免包含私人路径或凭据：[提交 Issue](https://github.com/piercezzs/app-launcher/issues)。
+界面语言和复现步骤，并避免包含私人路径或凭据：[提交 Issue](https://github.com/piercezzs/hatch/issues)。
 
 ## 许可证
 

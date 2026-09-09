@@ -1,4 +1,4 @@
-APP LAUNCHER - THIRD-PARTY NOTICES
+HATCH - THIRD-PARTY NOTICES
 Original application code: Copyright (c) 2026 piercezzs, GPL-3.0-only.
 Third-party software retains its own copyright and license terms.
 Inventory includes JavaScript production dependencies and locked Rust packages
@@ -7,7 +7,7 @@ package is included in every binary. Upstream license expressions are retained;
 OR expressions offer alternatives, while AND expressions require both terms.
 Unmodified MPL-covered dependency sources are available at the version-specific
 crate download links below. Project source is available from the matching tag
-at https://github.com/piercezzs/app-launcher.
+at https://github.com/piercezzs/hatch.
 
 ==============================================================================
 @babel/runtime 7.29.7

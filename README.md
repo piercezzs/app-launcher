@@ -1,23 +1,27 @@
-# App Launcher
+# Hatch
+
+<img src="docs/brand/hatch-icon.png" alt="Hatch" width="128" />
+
+> Hatch is the new name of App Launcher. Existing v0.1.0/v0.2.0 releases and the screenshots below retain the previous branding; this source change does not republish those installers.
 
 **English** | [简体中文](README.zh-CN.md)
 
 A local-first application launcher for macOS and Windows, built with Tauri 2,
 React, and Rust. Find your apps, organize your workspace, and launch with less friction.
 
-[Download](https://github.com/piercezzs/app-launcher/releases) ·
-[Report an issue](https://github.com/piercezzs/app-launcher/issues) ·
+[Download](https://github.com/piercezzs/hatch/releases) ·
+[Report an issue](https://github.com/piercezzs/hatch/issues) ·
 [Release guide](docs/releasing.md)
 
 ## A look inside
 
-![App Launcher in English on macOS](docs/images/main-en.jpg)
+![App Launcher before the Hatch rebrand, in English on macOS](docs/images/main-en.jpg)
 
 Search, pinned apps, groups, recent activity, and app details in one paper-inspired workspace.
 
 ![Editing an app in English on macOS](docs/images/edit-en.jpg)
 
-Screenshots show the current development build running in a native macOS window,
+Screenshots show the pre-rebrand build running in a native macOS window,
 using an isolated profile with demonstration groups and history. User-created names,
 notes, and paths retain their original text when the interface language changes.
 
@@ -33,7 +37,7 @@ notes, and paths retain their original text when the interface language changes.
 
 ## Download and install
 
-Get the installer for your computer from [Releases](https://github.com/piercezzs/app-launcher/releases).
+Get the installer for your computer from [Releases](https://github.com/piercezzs/hatch/releases).
 Expand **Assets** on a release page; the source ZIP/TAR archives are not installers.
 
 | Computer | Installer |
@@ -47,7 +51,7 @@ installer and follow its prompts. Linux and mobile are not supported.
 
 **Release status:** v0.2.0 is a public preview with bilingual settings and background
 application scanning. The earlier v0.1.0 installers do not include language switching.
-See [Releases](https://github.com/piercezzs/app-launcher/releases) for available installers.
+See [Releases](https://github.com/piercezzs/hatch/releases) for available installers.
 
 macOS packages use ad-hoc signing and are **not notarized**. Windows installers
 are **not publisher-signed**. Your operating system may warn or block them.
@@ -61,7 +65,7 @@ Intel Mac acceptance remain pending; build success alone does not establish them
 
 ## Language
 
-![App Launcher global language settings on macOS](docs/images/settings-en.jpg)
+![App Launcher language settings before the Hatch rebrand](docs/images/settings-en.jpg)
 
 Open **Settings** in the top-right corner and choose a language:
 
@@ -109,14 +113,14 @@ the end; the first build for an explicit architecture may take longer.
 This local command does not notarize, install, upload, or publish the app.
 
 `pnpm test` runs the language tests and Rust tests. The frontend development port
-is `1430`. `pnpm --filter app-launcher dev` starts a renderer-only preview; native
+is `1430`. `pnpm --filter hatch dev` starts a renderer-only preview; native
 scan and launch actions require the Tauri runtime.
 
 ## Repository and translation maintenance
 
 ```text
-apps/app-launcher/             React frontend and Tauri/Rust shell
-apps/app-launcher/src/locales/ English and Simplified Chinese dictionaries
+apps/hatch/                   React frontend and Tauri/Rust shell
+apps/hatch/src/locales/        English and Simplified Chinese dictionaries
 packages/ui/                  Repository-local UI components
 docs/images/                  Native application screenshots
 .github/workflows/            Checks, installers, and draft releases
@@ -136,7 +140,8 @@ another repository.
 App records live in the operating system's app-data directory, under `launcher/`:
 `device.json` (custom entries), `overlay.json` (groups and overrides), and
 `scan_cache.json` (rebuildable discovery data). The identifier remains
-`com.tessera.app-launcher` for installation and data continuity.
+`com.tessera.app-launcher` for application identity and data continuity.
+Installer upgrade behavior is separate; see the [branding transition](docs/releasing.md#hatch-branding-transition).
 
 The language preference uses the application's local WebView storage, separately
 from app records. Installed paths, groups, icons, and launch history stay on the
@@ -153,7 +158,7 @@ GitHub downloads are governed by GitHub's policies.
 
 See [architecture and acceptance](docs/architecture.md). For bugs, include your
 platform, app version, interface language, and steps to reproduce in an
-[issue](https://github.com/piercezzs/app-launcher/issues), without private paths or credentials.
+[issue](https://github.com/piercezzs/hatch/issues), without private paths or credentials.
 
 ## License
 

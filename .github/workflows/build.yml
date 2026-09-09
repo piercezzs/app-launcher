@@ -64,7 +64,7 @@ jobs:
           targets: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
-          workspaces: apps/app-launcher/src-tauri -> target
+          workspaces: apps/hatch/src-tauri -> target
           key: ${{ matrix.target }}
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
@@ -74,18 +74,18 @@ jobs:
         env:
           APPLE_SIGNING_IDENTITY: '-'
         with:
-          projectPath: apps/app-launcher
+          projectPath: apps/hatch
           args: --target ${{ matrix.target }} --bundles ${{ matrix.bundle }} --ci -- --locked
           uploadUpdaterJson: false
           uploadUpdaterSignatures: false
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: app-launcher-${{ matrix.target }}
+          name: hatch-${{ matrix.target }}
           if-no-files-found: error
           retention-days: 14
           path: |
-            apps/app-launcher/src-tauri/target/${{ matrix.target }}/release/bundle/**/*.dmg
-            apps/app-launcher/src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*-setup.exe
+            apps/hatch/src-tauri/target/${{ matrix.target }}/release/bundle/**/*.dmg
+            apps/hatch/src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*-setup.exe
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: matrix.target == 'aarch64-apple-darwin'
         with:
@@ -116,4 +116,4 @@ jobs:
           mapfile -d '' files < <(find installers -type f -print0)
           test "${#files[@]}" -ge 5
           printf 'Source: https://github.com/%s/tree/%s\n\nmacOS packages use ad-hoc signing and are not notarized. Windows installers are unsigned. In-app updates are not implemented.\n' "$GH_REPO" "$RELEASE_TAG" > release-notes.md
-          gh release create "$RELEASE_TAG" "${files[@]}" --verify-tag --draft --title "App Launcher $RELEASE_TAG" --notes-file release-notes.md
+          gh release create "$RELEASE_TAG" "${files[@]}" --verify-tag --draft --title "Hatch $RELEASE_TAG" --notes-file release-notes.md

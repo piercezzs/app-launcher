@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 
-const app = JSON.parse(readFileSync(new URL("../apps/app-launcher/package.json", import.meta.url), "utf8"));
-const cargo = readFileSync(new URL("../apps/app-launcher/src-tauri/Cargo.toml", import.meta.url), "utf8");
+const app = JSON.parse(readFileSync(new URL("../apps/hatch/package.json", import.meta.url), "utf8"));
+const cargo = readFileSync(new URL("../apps/hatch/src-tauri/Cargo.toml", import.meta.url), "utf8");
 const rustVersion = cargo.match(/^version\s*=\s*"([^"]+)"/m)?.[1];
 const tag = process.argv[2];
 if (rustVersion !== app.version) {

@@ -28,8 +28,9 @@ they do not introduce cross-process storage coordination or change JSON formats.
 Windows workers initialize COM before Shell icon lookup and release only their own
 initialization on that same thread.
 
-The bundle identifier is `com.tessera.app-launcher`. It is retained for data and
-installation continuity despite the repository becoming independent.
+The bundle identifier is `com.tessera.app-launcher`. It is retained for application identity and data continuity after the Hatch
+rebrand. Installer upgrade detection is a separate platform boundary; see
+[the branding transition](releasing.md#hatch-branding-transition).
 
 macOS uses system metadata/icon tools and `/usr/bin/open`. Its platform config
 enables native window decorations. Windows uses Start Menu shortcuts,

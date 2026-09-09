@@ -1,5 +1,5 @@
 {
-  "name": "app-launcher-workspace",
+  "name": "hatch-workspace",
   "private": true,
   "version": "0.2.0",
   "license": "GPL-3.0-only",
@@ -10,15 +10,15 @@
     "node": ">=22.12.0"
   },
   "scripts": {
-    "dev": "pnpm --filter app-launcher desktop:dev",
-    "build": "pnpm --filter app-launcher desktop:build",
+    "dev": "pnpm --filter hatch desktop:dev",
+    "build": "pnpm --filter hatch desktop:build",
     "check": "pnpm -r check",
     "typecheck": "pnpm -r typecheck",
-    "test": "pnpm --filter app-launcher test && cargo test --locked --manifest-path apps/app-launcher/src-tauri/Cargo.toml",
+    "test": "pnpm --filter hatch test && cargo test --locked --manifest-path apps/hatch/src-tauri/Cargo.toml",
     "desktop:build:local": "node scripts/build-local-macos.mjs"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/piercezzs/app-launcher.git"
+    "url": "https://github.com/piercezzs/hatch.git"
   }
 }

@@ -1,9 +1,9 @@
-# App Launcher Project Rules
+# Hatch Project Rules
 
 ## Scope and ownership
 
-- This repository is the only development authority for App Launcher.
-- `apps/app-launcher` owns the frontend, Rust commands, Tauri configuration, and assets.
+- This repository is the only development authority for Hatch.
+- `apps/hatch` owns the frontend, Rust commands, Tauri configuration, and assets.
 - `packages/ui` is a repository-local copy maintained independently; its historical
   package name is retained for compatibility. Do not synchronize it externally.
 - Read `docs/architecture.md` for data and platform boundaries, and
@@ -39,7 +39,7 @@
 ## Releases and licensing
 
 - Original code uses GPL-3.0-only; preserve third-party notices and source access.
-- Tags are `v<apps/app-launcher/package.json version>` and originate from `main`.
+- Tags are `v<apps/hatch/package.json version>` and originate from `main`.
 - Installers belong in Actions artifacts or Releases, not Git source history.
 - Publishing a release, changing signing credentials, or adding self-update behavior
   must stay within the user's explicitly authorized task.

@@ -57,3 +57,24 @@ third-party notices describe dependency source locations and licenses.
 Keep `com.tessera.app-launcher` stable. The repository move does not authorize
 data-format migration or user-data removal. In-app updating is deliberately a
 separate follow-up; this workflow does not create updater keys or manifests.
+
+## Hatch branding transition
+
+Hatch replaces the App Launcher product name. The application identifier
+`com.tessera.app-launcher`, Rust binary/library names, `app-launcher.language`
+preference key, and launcher JSON storage remain unchanged. Repository/source
+directory names do not determine the user-data directory.
+
+Existing tags and release installers keep their original branding. This change
+does not publish a new installer or migrate an installed application.
+
+The NSIS installer derives its uninstall registry key from the product name.
+Changing it to Hatch therefore does not establish automatic upgrade detection
+of an older App Launcher installation. Before a Windows release, implement and
+verify the old-installation transition on Windows, including shortcut cleanup,
+uninstall behavior, and preservation of JSON data and WebView preferences.
+Do not claim seamless upgrade based only on the stable bundle identifier.
+
+On macOS, the built bundle is Hatch.app. Existing App Launcher.app copies are
+not automatically replaced or removed by a source build; do not run both versions
+against the shared data directory at the same time.

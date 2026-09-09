@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
-const nativeRoot = join(root, "apps/app-launcher/src-tauri");
+const nativeRoot = join(root, "apps/hatch/src-tauri");
 
 // Local builds use ad-hoc signing even if this shell has release credentials.
 const env = Object.fromEntries(
@@ -54,7 +54,7 @@ function buildLocalMacOS() {
 
   console.log(`[1/4] Building ${host} application…`);
   run("pnpm", [
-    "--filter", "app-launcher", "desktop:build",
+    "--filter", "hatch", "desktop:build",
     "--config", "src-tauri/tauri.macos.conf.json", "--bundles", "app", "--target", host,
   ]);
   if (!statSync(bundle).isDirectory()) throw new Error(`Application bundle is missing: ${bundle}`);

@@ -8,7 +8,7 @@ importers:
 
   .: {}
 
-  apps/app-launcher:
+  apps/hatch:
     dependencies:
       '@tauri-apps/api':
         specifier: ^2

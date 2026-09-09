@@ -2,7 +2,7 @@
 
 <img src="docs/brand/hatch-icon.png" alt="Hatch" width="128" />
 
-> Hatch is the new name of App Launcher. Existing v0.1.0/v0.2.0 releases and the screenshots below retain the previous branding; this source change does not republish those installers.
+> Hatch is the new name of App Launcher. Version v0.3.0 introduces the Hatch name and icon. Older releases and the screenshots below retain the previous branding.
 
 **English** | [简体中文](README.zh-CN.md)
 
@@ -49,8 +49,16 @@ Expand **Assets** on a release page; the source ZIP/TAR archives are not install
 On macOS, open the DMG and drag the app into Applications. On Windows, run the
 installer and follow its prompts. Linux and mobile are not supported.
 
-**Release status:** v0.2.0 is a public preview with bilingual settings and background
-application scanning. The earlier v0.1.0 installers do not include language switching.
+**Existing installations:** Quit App Launcher before opening Hatch on macOS;
+copying Hatch.app does not replace an older App Launcher.app. Run only one
+version at a time. The Windows v0.3.0 preview is for clean installations;
+upgrading an existing App Launcher installation is not supported or verified.
+Keep using the previous Windows version until its migration path is verified.
+
+**Release status:** v0.3.0 is a public preview with the Hatch name and icon,
+bilingual settings, and background application scanning. See the
+[v0.3.0 release notes](docs/releases/v0.3.0.md) for changes and installation limits.
+The earlier v0.1.0 installers do not include language switching.
 See [Releases](https://github.com/piercezzs/hatch/releases) for available installers.
 
 macOS packages use ad-hoc signing and are **not notarized**. Windows installers

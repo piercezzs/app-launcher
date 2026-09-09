@@ -65,15 +65,19 @@ Hatch replaces the App Launcher product name. The application identifier
 preference key, and launcher JSON storage remain unchanged. Repository/source
 directory names do not determine the user-data directory.
 
-Existing tags and release installers keep their original branding. This change
-does not publish a new installer or migrate an installed application.
+Existing tags and release installers keep their original branding. The v0.3.0
+public preview introduces Hatch installers without migrating an installed
+application. Publish it as a GitHub prerelease, not a verified production release.
 
 The NSIS installer derives its uninstall registry key from the product name.
 Changing it to Hatch therefore does not establish automatic upgrade detection
-of an older App Launcher installation. Before a Windows release, implement and
-verify the old-installation transition on Windows, including shortcut cleanup,
-uninstall behavior, and preservation of JSON data and WebView preferences.
-Do not claim seamless upgrade based only on the stable bundle identifier.
+of an older App Launcher installation. The v0.3.0 Windows public preview is
+limited to clean installations and must explicitly exclude existing-installation
+upgrades in its release notes. Existing Windows users should stay on their old
+version until migration is verified. Before enabling upgrade support, implement
+and verify the transition on Windows, including shortcut cleanup, uninstall
+behavior, and preservation of JSON data and WebView preferences. Do not claim
+seamless upgrade based only on the stable bundle identifier.
 
 On macOS, the built bundle is Hatch.app. Existing App Launcher.app copies are
 not automatically replaced or removed by a source build; do not run both versions

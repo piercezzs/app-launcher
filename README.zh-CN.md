@@ -2,7 +2,7 @@
 
 <img src="docs/brand/hatch-icon.png" alt="Hatch" width="128" />
 
-> Hatch 是 App Launcher 的新名称。现有 v0.1.0/v0.2.0 发布包和下方截图仍使用旧品牌；本次源码更名不会重新发布这些安装包。
+> Hatch 是 App Launcher 的新名称。v0.3.0 开始使用 Hatch 名称及新图标；历史发布包与下方截图仍保留旧品牌。
 
 [English](README.md) | **简体中文**
 
@@ -48,7 +48,11 @@
 macOS：打开 DMG，将应用拖入 Applications。Windows：运行安装程序并按提示操作。
 目前不支持 Linux 和移动平台。
 
-**发布状态：** v0.2.0 为公开测试版，包含中英设置和后台应用扫描。
+**已有安装：** macOS 打开 Hatch 前请先退出 App Launcher；复制 Hatch.app 不会替换旧 App Launcher.app，请勿同时运行两个版本。
+Windows v0.3.0 预览包仅面向全新安装，尚不支持或保证从旧 App Launcher 升级；已有用户请继续使用旧版，等待迁移路径验证完成。
+
+**发布状态：** v0.3.0 为公开预览版，采用 Hatch 名称及新图标，保留中英设置和后台应用扫描。
+变化及安装边界见 [v0.3.0 发布说明](docs/releases/v0.3.0.md)。
 较早的 v0.1.0 安装包不包含语言切换，请从 [Releases](https://github.com/piercezzs/hatch/releases) 获取可用安装包。
 
 macOS 安装包使用临时签名，**尚未进行 Apple 公证**；Windows 安装包

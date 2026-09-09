@@ -55,17 +55,17 @@ version at a time. The Windows v0.3.0 preview is for clean installations;
 upgrading an existing App Launcher installation is not supported or verified.
 Keep using the previous Windows version until its migration path is verified.
 
-**Release status:** v0.3.0 is a public preview with the Hatch name and icon,
-bilingual settings, and background application scanning. See the
-[v0.3.0 release notes](docs/releases/v0.3.0.md) for changes and installation limits.
+**Development status:** v0.4.0 adds signed in-app updates. See the
+[v0.4.0 release notes](docs/releases/v0.4.0.md) for changes and pending acceptance.
+Only published assets in Releases are available for general installation.
 The earlier v0.1.0 installers do not include language switching.
 See [Releases](https://github.com/piercezzs/hatch/releases) for available installers.
 
 macOS packages use ad-hoc signing and are **not notarized**. Windows installers
 are **not publisher-signed**. Your operating system may warn or block them.
 Do not disable system security globally. Official signing and notarization remain
-separate release work. In-app automatic updates are not implemented; download and
-install newer releases manually.
+separate release work. Users of v0.3.0 and earlier must manually install the first updater-enabled
+release. Subsequent updates require a published stable feed and user confirmation.
 
 Native builds are configured for all three targets. macOS Apple Silicon has local
 runtime evidence. Full Windows scan/icon/launch/window acceptance and physical

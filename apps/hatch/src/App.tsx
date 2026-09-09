@@ -1,3 +1,4 @@
+import { startUpdateChecks } from "./updates/client";
 import { useTranslation } from "react-i18next";
 import { t, message, formatMessage, type LocalizedMessage, type TranslationKey } from "./i18n";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -76,6 +77,7 @@ export default function App() {
   const loadInFlight = useRef<Promise<LauncherState | null> | null>(null);
 
   useEffect(() => { void load(false); }, []);
+  useEffect(startUpdateChecks, []);
   useEffect(() => {
     if (!toast) return;
     const timer = window.setTimeout(() => setToast(null), 2200);
@@ -369,7 +371,8 @@ export default function App() {
 
   return (
     <div className="launcher-shell">
-      <WindowTitleBar query={query} searchInputRef={searchInputRef} searchContext={JSON.stringify([activeGroup, sortMode])} onQueryChange={setQuery} onWindowError={() => setToast(message("feedback.windowFailed"))} />
+      <WindowTitleBar
+        hasUnsavedWork={saving || editing !== null || groupsOpen || pendingRemoval !== null || pendingGroupRemoval !== null} query={query} searchInputRef={searchInputRef} searchContext={JSON.stringify([activeGroup, sortMode])} onQueryChange={setQuery} onWindowError={() => setToast(message("feedback.windowFailed"))} />
       <div className="launcher-workspace">
         <aside className="launcher-sidebar" aria-label={t("groups.heading")}>
           <div className="sidebar-heading">

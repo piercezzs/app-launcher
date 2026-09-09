@@ -36,6 +36,15 @@
     "resources": {
       "../../../LICENSE": "legal/LICENSE",
       "../../../THIRD_PARTY_NOTICES.txt": "legal/THIRD_PARTY_NOTICES.txt"
+    },
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDUyOUI3MkFGMDcwOTc0RTUKUldUbGRBa0hyM0tiVXQrdUFjODFwQzl0ajVXTzFROTdNVDh0b1g2NGdKSEZ0ekY2amhiTE1IcVYK",
+      "windows": {
+        "installMode": "passive"
+      }
     }
   }
 }

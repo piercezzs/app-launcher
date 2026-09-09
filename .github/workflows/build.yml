@@ -29,6 +29,7 @@ jobs:
           git fetch --unshallow origin
           git fetch origin main:refs/remotes/origin/main
           git merge-base --is-ancestor HEAD origin/main
+      - run: node --test scripts/updater-release.test.mjs
       - name: Validate versions and optional release tag
         env:
           RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
@@ -42,10 +43,10 @@ jobs:
         include:
           - os: macos-latest
             target: aarch64-apple-darwin
-            bundle: dmg
+            bundle: app,dmg
           - os: macos-latest
             target: x86_64-apple-darwin
-            bundle: dmg
+            bundle: app,dmg
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             bundle: nsis
@@ -69,6 +70,11 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
       - run: pnpm test
+      - name: Configure and verify updater signing
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ startsWith(github.ref, 'refs/tags/') && secrets.TAURI_SIGNING_PRIVATE_KEY || '' }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ startsWith(github.ref, 'refs/tags/') && secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD || '' }}
+        run: node scripts/configure-ci-updater.mjs
       - name: Build installer
         uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # v1
         env:
@@ -78,14 +84,19 @@ jobs:
           args: --target ${{ matrix.target }} --bundles ${{ matrix.bundle }} --ci -- --locked
           uploadUpdaterJson: false
           uploadUpdaterSignatures: false
+      - name: Collect uniquely named installer and updater assets
+        shell: bash
+        env:
+          BUILD_TARGET: ${{ matrix.target }}
+        run: |
+          VERSION=$(node -p 'require("./apps/hatch/package.json").version')
+          node scripts/updater-release.mjs collect "apps/hatch/src-tauri/target/$BUILD_TARGET/release/bundle" upload "$BUILD_TARGET" "$VERSION"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: hatch-${{ matrix.target }}
           if-no-files-found: error
           retention-days: 14
-          path: |
-            apps/hatch/src-tauri/target/${{ matrix.target }}/release/bundle/**/*.dmg
-            apps/hatch/src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*-setup.exe
+          path: upload/*
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: matrix.target == 'aarch64-apple-darwin'
         with:
@@ -103,6 +114,10 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           path: installers
@@ -113,7 +128,9 @@ jobs:
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
+          SOURCE_COMMIT=$(git rev-parse HEAD)
+          node scripts/updater-release.mjs manifest installers "$GH_REPO" "$RELEASE_TAG" "$SOURCE_COMMIT"
           mapfile -d '' files < <(find installers -type f -print0)
-          test "${#files[@]}" -ge 5
-          printf 'Source: https://github.com/%s/tree/%s\n\nmacOS packages use ad-hoc signing and are not notarized. Windows installers are unsigned. In-app updates are not implemented.\n' "$GH_REPO" "$RELEASE_TAG" > release-notes.md
+          test "${#files[@]}" -eq 12
+          printf 'Source: https://github.com/%s/tree/%s\n\nmacOS packages use ad-hoc signing and are not notarized. Windows installers are unsigned. Updater archives are signed separately from OS publisher identity. This draft does not change any update channel. v0.3.0 users must manually install their first updater-enabled build. Legacy App Launcher upgrades remain unverified.\n' "$GH_REPO" "$RELEASE_TAG" > release-notes.md
           gh release create "$RELEASE_TAG" "${files[@]}" --verify-tag --draft --title "Hatch $RELEASE_TAG" --notes-file release-notes.md

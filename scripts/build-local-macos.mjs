@@ -55,7 +55,8 @@ function buildLocalMacOS() {
   console.log(`[1/4] Building ${host} application…`);
   run("pnpm", [
     "--filter", "hatch", "desktop:build",
-    "--config", "src-tauri/tauri.macos.conf.json", "--bundles", "app", "--target", host,
+    "--config", "src-tauri/tauri.macos.conf.json", "--config",
+    JSON.stringify({ bundle: { createUpdaterArtifacts: false } }), "--bundles", "app", "--target", host,
   ]);
   if (!statSync(bundle).isDirectory()) throw new Error(`Application bundle is missing: ${bundle}`);
 

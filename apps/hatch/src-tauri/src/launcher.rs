@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
     fs,
+    io::Write,
     path::{Path, PathBuf},
     process::Command,
     sync::{
@@ -151,6 +152,7 @@ pub struct UpdateAppPayload {
 // Discovery never owns this lock. Only JSON snapshots and existing command
 // transactions share it, so a background scan cannot expose partial writes.
 static STORE_ACCESS: Mutex<()> = Mutex::new(());
+static UPDATE_INSTALLING: AtomicBool = AtomicBool::new(false);
 static LIST_IN_FLIGHT: AtomicBool = AtomicBool::new(false);
 
 struct ListRequest<'a>(&'a AtomicBool);
@@ -171,9 +173,29 @@ impl Drop for ListRequest<'_> {
 }
 
 fn lock_store() -> Result<MutexGuard<'static, ()>, String> {
-    STORE_ACCESS
+    let access = STORE_ACCESS
         .lock()
-        .map_err(|_| "Application data access was interrupted; restart the app".to_string())
+        .map_err(|_| "Application data access was interrupted; restart the app".to_string())?;
+    if UPDATE_INSTALLING.load(Ordering::Acquire) {
+        return Err("Hatch is installing an update; application data is temporarily locked".into());
+    }
+    Ok(access)
+}
+
+pub(crate) struct UpdateInstallation;
+
+pub(crate) fn begin_update_installation() -> Result<UpdateInstallation, String> {
+    // Drain any existing JSON transaction before rejecting subsequent access.
+    let _access = lock_store()?;
+    UPDATE_INSTALLING.store(true, Ordering::Release);
+    Ok(UpdateInstallation)
+}
+
+impl Drop for UpdateInstallation {
+    fn drop(&mut self) {
+        // Installation errors permit normal application use and another attempt.
+        UPDATE_INSTALLING.store(false, Ordering::Release);
+    }
 }
 
 #[tauri::command]
@@ -1642,6 +1664,43 @@ mod tests {
     }
 
     #[test]
+    fn installation_drains_writes_blocks_new_access_and_recovers() {
+        let _test = SCAN_TESTS.lock().unwrap();
+        let access = lock_store().unwrap();
+        let (started_tx, started_rx) = std::sync::mpsc::channel();
+        let (installed_tx, installed_rx) = std::sync::mpsc::channel();
+        let (release_tx, release_rx) = std::sync::mpsc::channel();
+        let worker = std::thread::spawn(move || {
+            started_tx.send(()).unwrap();
+            let _installation = begin_update_installation().unwrap();
+            installed_tx.send(()).unwrap();
+            release_rx.recv().unwrap();
+        });
+        started_rx.recv().unwrap();
+        assert!(installed_rx.try_recv().is_err());
+        drop(access);
+        installed_rx.recv().unwrap();
+        assert!(lock_store().is_err());
+        assert!(begin_update_installation().is_err());
+        release_tx.send(()).unwrap();
+        worker.join().unwrap();
+        assert!(lock_store().is_ok());
+    }
+
+    #[test]
+    fn atomic_json_replacement_preserves_complete_data() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("overlay.json");
+        write_json(&path, &vec!["old"]).unwrap();
+        write_json(&path, &vec!["new", "saved"]).unwrap();
+        assert_eq!(
+            read_json::<Vec<String>>(&path).unwrap(),
+            vec!["new", "saved"]
+        );
+        assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 1);
+    }
+
+    #[test]
     fn refresh_allows_user_edits_during_discovery_and_returns_latest_data() {
         let _test = SCAN_TESTS.lock().unwrap();
         let store = TestStore::new();
@@ -1858,7 +1917,23 @@ where
     }
     let content =
         serde_json::to_string_pretty(value).map_err(|err| format!("序列化数据失败: {err}"))?;
-    fs::write(path, content).map_err(|err| format!("写入数据失败: {err}"))
+    // Keep the previous complete JSON file until a flushed replacement is ready.
+    // NamedTempFile::persist replaces existing files atomically on supported
+    // platforms, including Windows; it never removes the old file first.
+    let parent = path.parent().ok_or("Application data path has no parent")?;
+    let mut temporary = tempfile::NamedTempFile::new_in(parent)
+        .map_err(|err| format!("创建临时数据文件失败: {err}"))?;
+    temporary
+        .write_all(content.as_bytes())
+        .map_err(|err| format!("写入数据失败: {err}"))?;
+    temporary
+        .as_file()
+        .sync_all()
+        .map_err(|err| format!("保存数据失败: {err}"))?;
+    temporary
+        .persist(path)
+        .map_err(|err| format!("替换数据文件失败: {err}"))?;
+    Ok(())
 }
 
 struct StorePaths {

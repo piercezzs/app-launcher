@@ -1503,3 +1503,24 @@ html[lang="en"] .toast { max-width: min(520px, calc(100vw - 32px)); white-space:
 @media (min-width: 681px) and (max-width: 900px) {
   html[lang="en"] .launcher-workspace { grid-template-columns: 166px minmax(0, 1fr); }
 }
+
+/* App-specific updater shares the existing settings dialog and paper controls. */
+.update-settings { border-top: 1px solid rgba(77,69,57,.24); margin-top: 22px; padding-top: 18px; font-size: 13px; }
+.update-settings__heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.update-settings__heading h3 { margin: 0; font-size: 14px; }
+.update-settings__heading > span { color: #686255; font-size: 12px; }
+.update-settings__automatic { display: flex; align-items: center; gap: 10px; line-height: 1.5; }
+.update-settings__automatic input { accent-color: #65755c; width: 16px; height: 16px; margin: 0; }
+.update-settings select:focus-visible, .update-settings input:focus-visible, .update-settings__notes:focus-visible { outline: 2px solid #64705a; outline-offset: 3px; }
+.update-settings__status { margin-top: 15px; overflow-wrap: anywhere; }
+.update-settings p { margin: 8px 0; line-height: 1.6; }
+.update-settings progress { accent-color: #76866a; width: 100%; height: 12px; }
+.update-settings__hint { color: #686255; font-size: 12px; }
+.update-settings__notes { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 120px; overflow-y: auto; font-size: 12px; line-height: 1.6; margin-top: 10px; }
+.update-settings__error { color: #843f2e; }
+.update-settings__notice, .update-settings__confirmation { border: 1px solid #b6ad98; border-radius: 5px; padding: 9px 12px; background: rgba(224,212,189,.35); }
+.update-settings__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.update-settings__actions .paper-button { white-space: normal; }
+.settings-trigger__update { width: 7px; height: 7px; border-radius: 50%; background: #8f4e33; display: inline-block; }
+
+.update-settings__details { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; user-select: text; }

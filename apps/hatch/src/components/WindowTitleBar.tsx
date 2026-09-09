@@ -8,6 +8,7 @@ import { useSearchQuery } from "./useSearchQuery";
 import hatchIcon from "../assets/hatch-icon.png";
 
 interface WindowTitleBarProps {
+  readonly hasUnsavedWork: boolean;
   readonly query: string;
   readonly searchContext: string;
   readonly searchInputRef: RefObject<HTMLInputElement | null>;
@@ -17,7 +18,7 @@ interface WindowTitleBarProps {
 
 type WindowAction = "minimize" | "maximize" | "close";
 
-export function WindowTitleBar({ query, searchContext, searchInputRef: inputRef, onQueryChange, onWindowError }: WindowTitleBarProps) {
+export function WindowTitleBar({ hasUnsavedWork, query, searchContext, searchInputRef: inputRef, onQueryChange, onWindowError }: WindowTitleBarProps) {
   useTranslation();
   const search = useSearchQuery(query, onQueryChange, searchContext);
   function clearSearch() {
@@ -95,7 +96,7 @@ export function WindowTitleBar({ query, searchContext, searchInputRef: inputRef,
 
       <div className="titlebar-tools">
         <p className="window-motto" data-tauri-drag-region>{t("brand.motto")}</p>
-        <ApplicationSettings />
+        <ApplicationSettings hasUnsavedWork={hasUnsavedWork} />
       </div>
 
       {!isMacOS ? (

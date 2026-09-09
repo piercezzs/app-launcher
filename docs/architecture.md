@@ -46,5 +46,32 @@ uses custom title-bar controls. These platform differences are intentional.
 - Developer ID signing/notarization and Windows publisher signing before treating
   release packages as verified production distribution.
 
-In-app updates, drag-and-drop ordering, and Assets.car-only icon extraction are
-future work. The extraction itself preserves the existing application behavior.
+Drag-and-drop ordering and Assets.car-only icon extraction remain future work.
+
+## Whole-package updates
+
+`src/updates` owns typed frontend status, device-local preferences, and update UI.
+`src-tauri/src/updater.rs` owns the official updater plugin, a fixed stable update
+feed, signature verification, prepared bytes, and installation. No frontend IPC
+accepts a URL, signing key, or executable bytes. Missing or malformed production
+public keys leave the plugin unregistered and all update commands disabled.
+
+Checks are optional, non-blocking, and throttled to once per 24 hours automatically;
+manual checks remain available. Download and installation require separate user
+actions. Native single-flight guards reject overlap and release on failure or
+cancellation. The frontend reconnects to in-flight native state after WebView reload.
+Only verified downloads enter ready; failed installation requires a new download.
+
+Installation drains the existing store transaction mutex and prevents new writes.
+JSON files retain their formats and now use atomic temporary-file replacement.
+macOS additionally backs up the current app bundle before calling the installer,
+restores it on an ordinary installation error or panic, and preserves recovery
+files with their path if restoration fails. This is not protection against every
+power loss, forced process termination, or storage failure. Windows uses the
+NSIS installer lifecycle; its real upgrade behavior still requires Windows testing.
+
+Settings block installation while application/group editing is open or pending.
+Application ID, language key, groups, pinned items, custom entries, and launcher
+JSON locations are unchanged. Downloads stay in memory and are not resumed across
+process restarts. There is no frontend code hot-update mechanism. See
+[release setup and acceptance](releasing.md#updater-signing-and-first-installation).

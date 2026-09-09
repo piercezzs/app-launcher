@@ -1,7 +1,16 @@
 mod launcher;
+mod updater;
 
 pub fn run() {
-    tauri::Builder::default()
+    let context = tauri::generate_context!();
+    let builder = tauri::Builder::default();
+    let builder = if updater::is_configured(context.config()) {
+        builder.plugin(tauri_plugin_updater::Builder::new().build())
+    } else {
+        builder
+    };
+    builder
+        .manage(updater::UpdateState::default())
         .invoke_handler(tauri::generate_handler![
             launcher::list_apps,
             launcher::launch_app,
@@ -10,8 +19,12 @@ pub fn run() {
             launcher::update_app,
             launcher::delete_app,
             launcher::save_groups,
-            launcher::migrate_group
+            launcher::migrate_group,
+            updater::update_status,
+            updater::check_update,
+            updater::download_update,
+            updater::install_update
         ])
-        .run(tauri::generate_context!())
+        .run(context)
         .expect("error while running app launcher");
 }

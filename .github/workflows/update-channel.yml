@@ -1,0 +1,83 @@
+name: Publish update channel
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing published release tag to publish or recover (for example v0.4.0)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hatch-update-channels
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.repository == 'piercezzs/hatch' && ((github.event_name == 'release' && github.event.release.prerelease == false) || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      # Always use the verifier from main, never scripts downloaded from a release.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: main
+          fetch-depth: 0
+          path: source
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - name: Verify published release provenance, assets, hashes and updater signatures
+        id: release
+        working-directory: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: |
+          [[ "$RELEASE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+          git fetch origin "refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"
+          SOURCE_COMMIT=$(git rev-parse "$RELEASE_TAG^{commit}")
+          git merge-base --is-ancestor "$SOURCE_COMMIT" origin/main
+          test "$(git show "$SOURCE_COMMIT:apps/hatch/package.json" | jq -r .version)" = "${RELEASE_TAG#v}"
+          gh api "repos/$GH_REPO/releases/tags/$RELEASE_TAG" > "$RUNNER_TEMP/release.json"
+          node scripts/updater-release.mjs metadata "$RUNNER_TEMP/release.json"
+          gh release download "$RELEASE_TAG" --dir "$RUNNER_TEMP/release-assets"
+          VERIFIED_COMMIT=$(node scripts/updater-release.mjs verify "$RUNNER_TEMP/release-assets" "$RUNNER_TEMP/release.json")
+          test "$VERIFIED_COMMIT" = "$SOURCE_COMMIT"
+          test "$(jq -r .version "$RUNNER_TEMP/release-assets/latest.json")" = "${RELEASE_TAG#v}"
+          echo "version=${RELEASE_TAG#v}" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: main
+          path: channels
+      - name: Atomically advance the stable update feed
+        working-directory: channels
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          if git ls-remote --exit-code --heads origin updates >/dev/null; then
+            git fetch origin updates
+            git checkout -B updates FETCH_HEAD
+          else
+            git checkout --orphan updates
+            git rm -rf .
+          fi
+          mkdir -p versions
+          node "$GITHUB_WORKSPACE/source/scripts/updater-release.mjs" channel "$RUNNER_TEMP/release-assets/latest.json" "versions/$VERSION.json"
+          node "$GITHUB_WORKSPACE/source/scripts/updater-release.mjs" channel "$RUNNER_TEMP/release-assets/latest.json" "stable.json"
+          git add "versions/$VERSION.json" "stable.json"
+          if git diff --cached --quiet; then
+            echo 'Channel already contains this verified release'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m "Publish stable update $VERSION"
+          git push origin HEAD:refs/heads/updates

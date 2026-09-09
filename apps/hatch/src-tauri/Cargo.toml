@@ -1,6 +1,6 @@
 [package]
 name = "app_launcher"
-version = "0.3.0"
+version = "0.4.0"
 description = "Hatch - local application launcher"
 authors = ["piercezzs"]
 license = "GPL-3.0-only"
@@ -20,6 +20,9 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 base64 = "0.22"
 png = "0.18"
+tauri-plugin-updater = "2.11"
+tokio = { version = "1", features = ["sync", "time", "macros"] }
+tempfile = "3"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows-sys = { version = "0.59", features = [
@@ -30,3 +33,6 @@ windows-sys = { version = "0.59", features = [
   "Win32_UI_Shell",
   "Win32_UI_WindowsAndMessaging"
 ] }
+
+[dev-dependencies]
+tauri = { version = "2", features = ["test"] }

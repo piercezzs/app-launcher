@@ -13,17 +13,22 @@ React, and Rust. Find your apps, organize your workspace, and launch with less f
 [Report an issue](https://github.com/piercezzs/hatch/issues) ·
 [Release guide](docs/releasing.md)
 
-## A look inside
+## Compare the two modes
 
-![Hatch paper-minimal mode in English on macOS](docs/images/minimal-main-en.png)
+Both screenshots show the same 18 fictional apps, groups, pins and sample history
+in an actual v0.5.0 macOS window at 980 × 720. All names, icons, notes, paths and
+usage records are demonstration data; no personal application inventory is used.
 
-Paper-minimal mode is the default: a warm paper background, one application grid,
-search, All / Pinned / Recent tabs, and an independent group filter. App details
-and management actions open when needed, keeping the main window uncluttered.
+| Minimal mode · default | Standard mode |
+| --- | --- |
+| ![Minimal mode with fictional demo apps](docs/images/minimal-main-en.jpg) | ![Standard mode with the same fictional demo apps](docs/images/standard-main-en.jpg) |
+| One application grid, search and compact filters. Details open when needed. | Pinned apps, group sidebar, detailed app list, recent activity and persistent details. |
+| [View full-size screenshot](docs/images/minimal-main-en.jpg) | [View full-size screenshot](docs/images/standard-main-en.jpg) |
 
-These are actual macOS screenshots of v0.5.0 using an isolated profile. Standard
-mode remains available in **More → Settings → Interface mode**. An existing saved
-mode is preserved; profiles without a preference start in Minimal.
+Both modes use the same launcher data and capabilities. Switch in
+**More → Settings → Interface mode** from Minimal, or **Settings → Interface mode**
+from Standard. An existing saved mode is preserved; profiles without a preference
+start in Minimal.
 
 ## Features
 
@@ -74,7 +79,7 @@ Intel Mac acceptance remain pending; build success alone does not establish them
 
 ## Language
 
-![Hatch interface and language settings on macOS](docs/images/minimal-settings-en.png)
+![Hatch interface and language settings on macOS](docs/images/minimal-settings-en.jpg)
 
 Open **More → Settings** in Minimal mode, or **Settings** in Standard mode, and choose a language:
 

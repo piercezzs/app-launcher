@@ -2,10 +2,14 @@ import { ApplicationSettings } from "./ApplicationSettings";
 import { useTranslation } from "react-i18next";
 import { t } from "../i18n";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { Search, X } from "@tessera/ui";
-import type { MouseEvent, RefObject } from "react";
+import { Check, Search, X } from "@tessera/ui";
+import { useState, useSyncExternalStore, type MouseEvent, type RefObject } from "react";
 import { useSearchQuery } from "./useSearchQuery";
 import hatchIcon from "../assets/hatch-icon.png";
+import { ActionMenu } from "./ActionMenu";
+import type { InterfaceMode } from "../interface-mode";
+import type { SortMode } from "../catalog";
+import { updates } from "../updates/client";
 
 interface WindowTitleBarProps {
   readonly hasUnsavedWork: boolean;
@@ -14,12 +18,30 @@ interface WindowTitleBarProps {
   readonly searchInputRef: RefObject<HTMLInputElement | null>;
   readonly onQueryChange: (query: string) => void;
   readonly onWindowError: () => void;
+  readonly interfaceMode: InterfaceMode;
+  readonly onInterfaceModeChange: (mode: InterfaceMode) => void;
+  readonly interfaceModeSaveFailed: boolean;
+  readonly onAdd: () => void;
+  readonly onManageGroups: () => void;
+  readonly onShowHidden: () => void;
+  readonly onRescan: () => void;
+  readonly loading: boolean;
+  readonly refreshing: boolean;
+  readonly sortMode: SortMode;
+  readonly onSortChange: (mode: SortMode) => void;
 }
 
 type WindowAction = "minimize" | "maximize" | "close";
 
-export function WindowTitleBar({ hasUnsavedWork, query, searchContext, searchInputRef: inputRef, onQueryChange, onWindowError }: WindowTitleBarProps) {
+export function WindowTitleBar({ hasUnsavedWork, query, searchContext, searchInputRef: inputRef, onQueryChange, onWindowError,
+  interfaceMode, onInterfaceModeChange, interfaceModeSaveFailed, onAdd, onManageGroups, onShowHidden, onRescan, loading, refreshing, sortMode, onSortChange,
+}: WindowTitleBarProps) {
   useTranslation();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const isMinimal = interfaceMode === "minimal";
+  const updateState = useSyncExternalStore(updates.subscribe, updates.getSnapshot);
+  const hasUpdate = updateState.native.phase === "available" || updateState.native.phase === "ready";
   const search = useSearchQuery(query, onQueryChange, searchContext);
   function clearSearch() {
     search.clear();
@@ -69,7 +91,7 @@ export function WindowTitleBar({ hasUnsavedWork, query, searchContext, searchInp
           type="search"
           ref={inputRef}
           value={search.draft}
-          placeholder={t("search.placeholder")}
+          placeholder={t(isMinimal ? "minimal.searchPlaceholder" : "search.placeholder")}
           onChange={(event) => search.change(event.currentTarget.value)}
           onCompositionStart={search.compositionStart}
           onCompositionEnd={(event) => search.compositionEnd(event.currentTarget.value)}
@@ -96,7 +118,25 @@ export function WindowTitleBar({ hasUnsavedWork, query, searchContext, searchInp
 
       <div className="titlebar-tools">
         <p className="window-motto" data-tauri-drag-region>{t("brand.motto")}</p>
-        <ApplicationSettings hasUnsavedWork={hasUnsavedWork} />
+        {isMinimal ? <ActionMenu label={t("minimal.menuLabel")} open={menuOpen} onOpenChange={setMenuOpen}
+          className="minimal-global-menu" triggerClassName="minimal-more-trigger" notification={hasUpdate ? t("updates.notification") : undefined}>
+          <button type="button" role="menuitem" className="app-action-item" disabled={hasUnsavedWork} onClick={() => onInterfaceModeChange("standard")}>{t("mode.returnStandard")}</button>
+          <div className="minimal-menu-divider" role="separator" />
+          <button type="button" role="menuitem" className="app-action-item" disabled={hasUnsavedWork} onClick={onAdd}>{t("app.add")}</button>
+          <button type="button" role="menuitem" className="app-action-item" disabled={hasUnsavedWork} onClick={onManageGroups}>{t("groups.manage")}</button>
+          <button type="button" role="menuitem" className="app-action-item" disabled={hasUnsavedWork} onClick={onShowHidden}>{t("groups.hidden")}</button>
+          <button type="button" role="menuitem" className="app-action-item" aria-busy={refreshing} disabled={loading || refreshing} onClick={onRescan}>{t(refreshing ? "scan.scanning" : "scan.rescan")}</button>
+          <div className="minimal-menu-divider" role="separator" />
+          <div role="group" aria-label={t("sort.label")}>
+            {(["default", "recent", "frequent"] as const).map((value) => <button key={value} type="button" role="menuitemradio" aria-checked={sortMode === value} className="app-action-item" onClick={() => onSortChange(value)}>
+              <span>{t(`sort.${value}`)}</span>{sortMode === value ? <Check size={14} aria-hidden="true" /> : null}
+            </button>)}
+          </div>
+          <div className="minimal-menu-divider" role="separator" />
+          <button type="button" role="menuitem" className="app-action-item" onClick={() => setSettingsOpen(true)}>{t("settings.title")}</button>
+        </ActionMenu> : null}
+        <ApplicationSettings hasUnsavedWork={hasUnsavedWork} interfaceMode={interfaceMode} onInterfaceModeChange={onInterfaceModeChange}
+          interfaceModeSaveFailed={interfaceModeSaveFailed} open={settingsOpen} onOpenChange={setSettingsOpen} hideTrigger={isMinimal} />
       </div>
 
       {!isMacOS ? (

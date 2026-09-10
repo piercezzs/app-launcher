@@ -1,0 +1,351 @@
+/* Paper-minimal mode shares the application data and original paper asset. */
+html[data-interface-mode="minimal"] {
+  --ui-bg: #eee5d4;
+  --ui-surface: #eee3ce;
+  --ui-text: #3d3a34;
+  --ui-muted: #746d61;
+}
+
+.launcher-shell--minimal,
+html[data-interface-mode="minimal"] .ui-dialog,
+html[data-interface-mode="minimal"] .app-action-menu {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.launcher-shell.launcher-shell--minimal,
+html[data-platform="macos"] .launcher-shell.launcher-shell--minimal {
+  display: flex;
+  flex-direction: column;
+  background-color: #eee5d4;
+  background-image:
+    linear-gradient(132deg, rgba(255, 252, 239, 0.7), rgba(255, 252, 239, 0.16) 48%, rgba(132, 109, 77, 0.06)),
+    var(--paper-fiber);
+  background-size: cover, 256px 256px;
+  background-blend-mode: normal, multiply;
+}
+
+.launcher-shell--minimal::after { display: none; }
+
+.launcher-shell--minimal .window-titlebar {
+  flex: 0 0 auto;
+  grid-template-columns: auto minmax(0, 1fr) auto 102px;
+  gap: 28px;
+  min-height: 82px;
+  padding: 21px 30px 17px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* Tauri's overlay title bar keeps real macOS window controls in this top strip. */
+html[data-platform="macos"] .launcher-shell--minimal .window-titlebar {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 28px;
+  min-height: 112px;
+  padding: 51px 30px 17px;
+}
+
+.launcher-shell--minimal .window-brand { display: flex; gap: 9px; }
+.launcher-shell--minimal .window-brand__mark { width: 31px; height: 31px; }
+.launcher-shell--minimal .window-brand strong {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-shadow: none;
+}
+.launcher-shell--minimal .window-brand small,
+.launcher-shell--minimal .window-motto { display: none; }
+
+.launcher-shell--minimal .titlebar-search {
+  height: 44px;
+  gap: 11px;
+  padding: 0 13px;
+  color: #71695d;
+  border: 1px solid rgba(89, 78, 63, 0.3);
+  border-radius: 10px;
+  background-color: rgba(225, 213, 190, 0.72);
+  box-shadow:
+    inset 1px 2px 4px rgba(93, 75, 82, 0.08),
+    inset -1px -1px 1px rgba(255, 253, 242, 0.63);
+}
+.launcher-shell--minimal .titlebar-search:focus-within {
+  border-color: #74826c;
+  box-shadow: 0 0 0 2px rgba(109, 123, 98, 0.12);
+}
+.launcher-shell--minimal .titlebar-search input { font-size: 14px; }
+.launcher-shell--minimal .titlebar-search input::placeholder { color: #786e5f; }
+.launcher-shell--minimal .titlebar-search > svg { flex-shrink: 0; }
+.launcher-shell--minimal .titlebar-search__clear { border-radius: 6px; }
+
+.launcher-shell--minimal .minimal-more-trigger {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  color: #695f50;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  cursor: pointer;
+}
+.launcher-shell--minimal .minimal-more-trigger .settings-trigger__update { position: absolute; top: 5px; right: 3px; }
+.launcher-shell--minimal .minimal-more-trigger:hover,
+.launcher-shell--minimal .minimal-more-trigger[aria-expanded="true"] {
+  color: #4d5a48;
+  background-color: rgba(174, 184, 161, 0.3);
+}
+
+.launcher-shell--minimal .minimal-workspace {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.launcher-shell--minimal .minimal-filterbar {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 30px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(123, 110, 86, 0.19);
+}
+.launcher-shell--minimal .minimal-tabs { display: flex; flex-shrink: 0; gap: 7px; }
+.launcher-shell--minimal .minimal-tab {
+  height: 34px;
+  padding: 0 13px;
+  color: #746d61;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  font-size: 13px;
+  line-height: 20px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.launcher-shell--minimal .minimal-tab:hover { background-color: rgba(174, 184, 161, 0.25); }
+.launcher-shell--minimal .minimal-tab--active {
+  color: #47533e;
+  background-color: rgba(174, 184, 161, 0.56);
+  background-image: var(--paper-fiber);
+  background-size: 256px 256px;
+  box-shadow: inset 1px 1px 2px rgba(67, 77, 60, 0.07), inset -1px -1px 1px rgba(243, 244, 229, 0.54);
+  font-weight: 600;
+}
+.launcher-shell--minimal .minimal-group-filter { min-width: 0; max-width: 218px; }
+.launcher-shell--minimal .minimal-group-filter .paper-select__trigger {
+  grid-template-columns: minmax(0, 1fr) 14px;
+  gap: 8px;
+  min-width: 102px;
+  min-height: 34px;
+  height: 34px;
+  padding: 0 10px 0 12px;
+  color: #695f50;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  box-shadow: none;
+  font-size: 13px;
+  line-height: 20px;
+}
+.launcher-shell--minimal .minimal-group-filter .paper-select__value { max-width: 160px; }
+.launcher-shell--minimal .minimal-group-filter .paper-select__trigger:not(:disabled):hover,
+.launcher-shell--minimal .minimal-group-filter .paper-select__trigger[aria-expanded="true"] {
+  color: #4d5a48;
+  border-color: transparent;
+  background-color: rgba(174, 184, 161, 0.3);
+  box-shadow: none;
+}
+.launcher-shell--minimal .minimal-group-filter .paper-select__trigger:focus-visible {
+  outline: 2px solid #815b45;
+  outline-offset: 2px;
+}
+.launcher-shell--minimal .minimal-group-filter .paper-select__list {
+  left: auto;
+  right: 0;
+  width: max-content;
+  min-width: max(100%, 180px);
+  max-width: min(280px, calc(100vw - 40px));
+  border-radius: 9px;
+  box-shadow: 0 10px 30px rgba(58, 48, 37, 0.17);
+}
+
+.launcher-shell--minimal .minimal-catalog {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 15px 23px 30px;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #929b83 transparent;
+}
+.launcher-shell--minimal .minimal-catalog::-webkit-scrollbar { width: 6px; }
+.launcher-shell--minimal .minimal-catalog::-webkit-scrollbar-track { background: transparent; }
+.launcher-shell--minimal .minimal-catalog::-webkit-scrollbar-thumb { border-radius: 6px; background: #929b83; }
+.launcher-shell--minimal .minimal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 7px 3px;
+}
+.launcher-shell--minimal .minimal-tile { position: relative; min-width: 0; border-radius: 10px; }
+.launcher-shell--minimal .minimal-launch {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: 100%;
+  height: 105px;
+  padding: 9px 7px;
+  color: #3d3a34;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  cursor: pointer;
+}
+.launcher-shell--minimal .minimal-launch:hover,
+.launcher-shell--minimal .minimal-tile:focus-within .minimal-launch { background-color: rgba(174, 184, 161, 0.24); }
+.launcher-shell--minimal .minimal-launch:disabled { cursor: wait; }
+.launcher-shell--minimal .minimal-launch .native-app-icon--large {
+  width: 43px;
+  height: 43px;
+  filter: saturate(0.88) contrast(0.99) drop-shadow(1px 2px 1px rgba(61, 51, 38, 0.13));
+}
+.launcher-shell--minimal .minimal-launch .native-app-icon--placeholder { filter: none; }
+.launcher-shell--minimal .minimal-app-name {
+  display: -webkit-box;
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 17px;
+  text-align: center;
+  overflow-wrap: anywhere;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.launcher-shell--minimal .minimal-launch:has(.minimal-app-state) { gap: 6px; padding-top: 2px; padding-bottom: 20px; }
+.launcher-shell--minimal .minimal-app-state {
+  position: absolute;
+  right: 7px;
+  bottom: 2px;
+  left: 7px;
+  overflow: hidden;
+  color: #914b39;
+  font-size: 10px;
+  line-height: 14px;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.launcher-shell--minimal .minimal-launch[aria-busy="true"] .minimal-app-state { color: #53634f; }
+.launcher-shell--minimal .minimal-tile .row-more-button {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: #dce0cd;
+  opacity: 0;
+}
+.launcher-shell--minimal .minimal-tile:hover .row-more-button,
+.launcher-shell--minimal .minimal-tile:focus-within .row-more-button,
+.launcher-shell--minimal .minimal-tile .row-more-button[aria-expanded="true"] { opacity: 1; }
+.launcher-shell--minimal .minimal-empty { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 110px 20px 40px; color: #746d61; text-align: center; }
+.launcher-shell--minimal .minimal-empty > strong { color: #575443; font-size: 17px; font-weight: 500; }
+.launcher-shell--minimal .minimal-empty > span:not(.ui-spinner) { margin-bottom: 8px; font-size: 13px; line-height: 1.7; }
+.launcher-shell--minimal .minimal-empty > .ui-spinner { width: 22px; height: 22px; margin-bottom: 8px; color: #6d7b62; }
+.launcher-shell--minimal .minimal-empty .ui-btn { font-size: 13px; }
+.launcher-shell--minimal .error-banner { flex-shrink: 0; margin: 12px 30px 0; border: 1px solid rgba(145, 75, 57, 0.2); border-radius: 7px; }
+.launcher-shell--minimal .error-banner strong { font-size: 13px; }
+.launcher-shell--minimal .error-banner span { font-size: 12px; line-height: 1.5; }
+
+/* Portals are attached to the document, outside the launcher shell. */
+html[data-interface-mode="minimal"] .app-action-menu,
+html[data-interface-mode="minimal"] .ui-dialog {
+  color: #3d3a34;
+  border-color: #b4a790;
+  border-radius: 11px;
+  background-color: #eee3ce;
+  background-image: linear-gradient(142deg, rgba(255, 253, 242, 0.66), transparent 58%), var(--paper-fiber);
+  background-size: cover, 256px 256px;
+  box-shadow: 0 10px 30px rgba(58, 48, 37, 0.17);
+}
+html[data-interface-mode="minimal"] .minimal-global-menu { width: 210px; max-height: calc(100dvh - 24px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+html[data-interface-mode="minimal"] .minimal-global-menu .app-action-item { justify-content: space-between; }
+html[data-interface-mode="minimal"] .minimal-global-menu .app-action-item > svg { flex-shrink: 0; }
+html[data-interface-mode="minimal"] .app-action-item { min-height: 36px; border-radius: 6px; font-size: 13px; }
+html[data-interface-mode="minimal"] .app-action-item + .app-action-item { border-top: 0; }
+html[data-interface-mode="minimal"] .app-action-item:hover,
+html[data-interface-mode="minimal"] .app-action-item:focus-visible { background: rgba(174, 184, 161, 0.3); }
+html[data-interface-mode="minimal"] .minimal-menu-divider { height: 1px; margin: 4px 5px; border: 0; background: rgba(132, 117, 92, 0.2); }
+html[data-interface-mode="minimal"] .ui-dialog-backdrop { background: rgba(34, 44, 29, 0.16); }
+html[data-interface-mode="minimal"] .ui-dialog.settings-panel {
+  left: 50%;
+  right: auto;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(440px, calc(100vw - 32px));
+  max-height: calc(100dvh - 64px);
+}
+html[data-interface-mode="minimal"] .ui-dialog__head,
+html[data-interface-mode="minimal"] .ui-dialog__foot { background: transparent; }
+html[data-interface-mode="minimal"] .minimal-detail-dialog .app-detail { height: auto; padding: 0; overflow: visible; }
+html[data-interface-mode="minimal"] .minimal-detail-dialog .app-detail__identity { gap: 12px; padding-bottom: 18px; }
+html[data-interface-mode="minimal"] .minimal-detail-dialog .app-detail__identity strong { font-size: 16px; }
+html[data-interface-mode="minimal"] .minimal-detail-dialog .app-detail__identity span { font-size: 11px; }
+html[data-interface-mode="minimal"] .minimal-detail-dialog .app-detail dl { gap: 16px; margin: 22px 0; }
+html[data-interface-mode="minimal"] .minimal-detail-dialog .app-detail dl > div { font-size: 13px; }
+html[data-interface-mode="minimal"] .minimal-detail-dialog .detail-note dd { font-size: 13px; }
+html[data-interface-mode="minimal"] .minimal-detail-dialog .paper-button.ui-btn { min-height: 34px; font-size: 12px; }
+html[data-interface-mode="minimal"] .minimal-missing-notice { margin-top: 18px; color: #914b39; }
+html[data-interface-mode="minimal"] .minimal-missing-notice p { margin: 0 0 12px; font-size: 13px; line-height: 1.6; }
+
+/* The selector is available from Settings in either mode. */
+.interface-mode-field { min-width: 0; margin: 0 0 22px; padding: 0; border: 0; }
+.interface-mode-field > span { display: block; margin-bottom: 10px; color: #554f46; font-size: 13px; font-weight: 600; }
+.interface-mode-options { display: flex; gap: 4px; padding: 4px; border-radius: 9px; background: #ded3bb; }
+.interface-mode-option { flex: 1; min-width: 0; min-height: 40px; padding: 8px; color: #746d61; border: 0; border-radius: 6px; background: transparent; font-size: 13px; cursor: pointer; }
+.interface-mode-option:hover { background: rgba(246, 239, 223, 0.45); }
+.interface-mode-option[aria-checked="true"] { color: #4d5a48; background: #f6efdf; box-shadow: 0 1px 4px rgba(70, 92, 50, 0.08); font-weight: 600; }
+.interface-mode-option:disabled { opacity: 0.5; cursor: not-allowed; }
+.interface-mode-hint,
+.interface-mode-error { margin: 10px 0 0; font-size: 12px; line-height: 1.6; }
+.interface-mode-hint { color: #746d61; }
+.interface-mode-error { color: #914b39; }
+
+@media (max-width: 680px) {
+  .launcher-shell--minimal .window-titlebar,
+  html[data-platform="macos"] .launcher-shell--minimal .window-titlebar { gap: 14px; padding-right: 20px; padding-left: 20px; }
+  .launcher-shell--minimal .window-brand > span:last-child { display: none; }
+  .launcher-shell--minimal .minimal-filterbar { margin-inline: 20px; }
+  .launcher-shell--minimal .error-banner { margin-inline: 20px; }
+  .launcher-shell--minimal .minimal-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+@media (max-width: 460px) {
+  .launcher-shell--minimal .window-titlebar { grid-template-columns: minmax(0, 1fr) auto 102px; gap: 8px; padding-inline: 12px; }
+  html[data-platform="macos"] .launcher-shell--minimal .window-titlebar { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding-inline: 12px; }
+  .launcher-shell--minimal .window-brand { display: none; }
+  .launcher-shell--minimal .minimal-filterbar { margin-inline: 12px; gap: 6px; }
+  .launcher-shell--minimal .minimal-tabs { gap: 2px; }
+  .launcher-shell--minimal .minimal-tab { padding-inline: 8px; }
+  .launcher-shell--minimal .minimal-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (hover: none), (pointer: coarse) {
+  .launcher-shell--minimal .minimal-tile .row-more-button { width: 32px; height: 32px; background: transparent; opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .launcher-shell--minimal .minimal-empty .ui-spinner { animation: none; }
+}

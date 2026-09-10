@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "@tessera/ui/styles.css";
 import "./styles.css";
+import "./minimal.css";
 import App from "./App";
 import { initializeI18n } from "./i18n";
 

@@ -1,11 +1,10 @@
 import { startUpdateChecks } from "./updates/client";
 import { useTranslation } from "react-i18next";
 import { t, message, formatMessage, type LocalizedMessage, type TranslationKey } from "./i18n";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   Button,
   Checkbox,
-  Dialog,
   EyeOff,
   Field,
   FolderOpen,
@@ -21,11 +20,14 @@ import { AppActionsMenu } from "./components/AppActionsMenu";
 import { AppIcon } from "./components/AppIcon";
 import { PaperSelect } from "./components/PaperSelect";
 import { WindowTitleBar } from "./components/WindowTitleBar";
+import { MinimalCatalog } from "./components/MinimalCatalog";
+import { LauncherDialog as Dialog } from "./components/LauncherDialog";
+import { useInterfaceMode, type InterfaceMode } from "./interface-mode";
+import { filterLauncherApps, hasLaunchTime, sortLauncherApps, standardCatalogFilter, timestampValue, type CatalogView, type SortMode } from "./catalog";
 import type { LauncherApp, LauncherState } from "./types";
 
 const EMPTY_STATE: LauncherState = { groups: [], apps: [] };
 const MIN_REFRESHING_MS = 700;
-type SortMode = "default" | "recent" | "frequent";
 
 const SORT_OPTIONS: readonly { key: SortMode; label: TranslationKey }[] = [
   { key: "default", label: "sort.default" },
@@ -52,6 +54,12 @@ interface GroupRenameDraft {
 export default function App() {
   const { i18n } = useTranslation();
   const locale = i18n.resolvedLanguage ?? "en";
+  const { mode: interfaceMode, setMode: setInterfaceMode, persistenceError: interfaceModeSaveFailed } = useInterfaceMode();
+  const isMinimal = interfaceMode === "minimal";
+  const [minimalView, setMinimalView] = useState<Exclude<CatalogView, "hidden">>("all");
+  const [minimalGroup, setMinimalGroup] = useState<string | null>(null);
+  const [detailAppId, setDetailAppId] = useState<string | null>(null);
+  useLayoutEffect(() => { document.documentElement.dataset.interfaceMode = interfaceMode; }, [interfaceMode]);
   const [state, setState] = useState<LauncherState>(EMPTY_STATE);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -144,18 +152,10 @@ export default function App() {
   const availableAppTotal = useMemo(() => state.apps.filter((app) => !app.hidden).length, [state.apps]);
   const hiddenAppTotal = useMemo(() => state.apps.filter((app) => app.hidden).length, [state.apps]);
   const visibleApps = useMemo(() => {
-    const term = query.trim().toLowerCase();
-    const filtered = state.apps.filter((app) => {
-      const matchesTerm = !term || app.name.toLowerCase().includes(term) || app.note.toLowerCase().includes(term) || app.path.toLowerCase().includes(term);
-      const matchesVisibility = activeGroup === "hidden" ? app.hidden : !app.hidden;
-      const matchesGroup = activeGroup === "hidden" || activeGroup === "all" ||
-        (activeGroup === "recent" && hasLaunchTime(app)) ||
-        (activeGroup === "pinned" && app.pinned) ||
-        (activeGroup === "ungrouped" && !app.group) || app.group === activeGroup;
-      return matchesTerm && matchesVisibility && matchesGroup;
-    });
-    return sortLauncherApps(filtered, activeGroup === "recent" ? "recent" : sortMode, locale);
-  }, [activeGroup, query, sortMode, state.apps, locale]);
+    const filter = isMinimal ? { query, view: minimalView, group: minimalGroup } : standardCatalogFilter(activeGroup, query);
+    return sortLauncherApps(filterLauncherApps(state.apps, filter), filter.view === "recent" ? "recent" : sortMode, locale);
+  }, [isMinimal, minimalView, minimalGroup, activeGroup, query, sortMode, state.apps, locale]);
+  const detailApp = state.apps.find((app) => app.id === detailAppId) ?? null;
   const pinnedApps = useMemo(() => visibleApps.filter((app) => app.pinned && !app.hidden), [visibleApps]);
   const recentApps = useMemo(() => sortLauncherApps(visibleApps.filter(hasLaunchTime), "recent", locale).slice(0, 5), [visibleApps, locale]);
   const groupSelectOptions = useMemo(() => [
@@ -219,6 +219,7 @@ export default function App() {
   }
 
   function openEdit(app: LauncherApp) {
+    setDetailAppId(null);
     setActionsForId(null);
     setEditing({ id: app.id, name: app.name, path: app.path, args: app.args, group: app.group, note: app.note, pinned: app.pinned, isCustom: app.source === "custom" });
   }
@@ -320,6 +321,7 @@ export default function App() {
         apps: previous.apps.map((app) => app.group === removing ? { ...app, group: "" } : app),
       }));
       if (activeGroup === removing) setActiveGroup("all");
+      if (minimalGroup === removing) setMinimalGroup("");
       setGroupRename((previous) => previous?.from === removing ? null : previous);
       setPendingGroupRemoval(null);
       await reloadPreservingCatalogScroll();
@@ -354,6 +356,7 @@ export default function App() {
         apps: previous.apps.map((app) => app.group === from ? { ...app, group: next } : app),
       }));
       if (activeGroup === from) setActiveGroup(next);
+      if (minimalGroup === from) setMinimalGroup(next);
       setGroupRename(null);
       await reloadPreservingCatalogScroll();
       setToast(moved > 0 ? message("feedback.groupMigrated", { count: moved }) : message("feedback.groupRenamed"));
@@ -365,14 +368,76 @@ export default function App() {
     }
   }
 
+  const hasUnsavedWork = saving || editing !== null || groupsOpen || pendingRemoval !== null || pendingGroupRemoval !== null;
+
+  function changeInterfaceMode(next: InterfaceMode) {
+    if (hasUnsavedWork || next === interfaceMode) return;
+    setActionsForId(null);
+    setDetailAppId(null);
+    if (next === "minimal") {
+      const filter = standardCatalogFilter(activeGroup, query);
+      setMinimalView(filter.view === "hidden" ? "all" : filter.view);
+      setMinimalGroup(filter.group);
+    } else {
+      setActiveGroup(minimalView !== "all" ? minimalView : minimalGroup === null ? "all" : minimalGroup || "ungrouped");
+    }
+    setInterfaceMode(next);
+  }
+
+  function renderDetails(app: LauncherApp) {
+    return (
+              <div className="app-detail">
+                <div className="app-detail__identity"><AppIcon app={app} size="large" /><div><strong>{app.name}</strong><span>{sourceLabel(app)}</span></div></div>
+                {isMinimal && !app.exists ? <div className="minimal-missing-notice" role="status"><p>{t("minimal.missingDescription")}</p><Button className="paper-button" loading={refreshing} disabled={loading} onClick={() => void rescan()}>{t("scan.rescan")}</Button></div> : null}
+                <dl>
+                  <div className="detail-note"><dt>{t("app.note")}</dt><dd>{app.note || t("app.noNote")}</dd></div>
+                  <div><dt>{t("app.group")}</dt><dd>{app.group || t("groups.ungrouped")}</dd></div>
+                  <div><dt>{t("table.launchCount")}</dt><dd>{t("details.launchCount", { count: app.launchCount })}</dd></div>
+                  <div><dt>{t("details.lastOpened")}</dt><dd>{formatLastLaunch(app.lastLaunchedAt, locale)}</dd></div>
+                  <div className="detail-path"><dt>{t("details.location")}</dt><dd title={app.path}>{app.path || t("details.notProvided")}</dd></div>
+                </dl>
+                <div className="detail-actions">
+                  {app.hidden ? (
+                    <Button className="paper-button paper-button--wide" loading={saving} onClick={() => void restoreApp(app)}>{t("app.restore")}</Button>
+                  ) : (
+                    <Button className="paper-button paper-button--terracotta paper-button--wide" disabled={!app.exists || launchingId !== null} loading={launchingId === app.id} onClick={() => void launch(app)}>{t("app.launchFull")}</Button>
+                  )}
+                  <div><Button className="paper-button" disabled={!app.path} loading={openingLocationId === app.id} onClick={() => void openLocation(app)}>{t("app.openLocationShort")}</Button><Button className="paper-button" onClick={() => openEdit(app)}>{t("common.edit")}</Button></div>
+                  {!app.hidden ? (
+                    <Button className="paper-button paper-button--quiet paper-button--wide" icon={app.pinned ? <PinOff size={14} /> : <Pin size={14} />} loading={saving} onClick={() => void togglePin(app)}>
+                      {app.pinned ? t("app.unpin") : t("app.pin")}
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+    );
+  }
+
   const listSummary = activeGroup === "hidden"
     ? t("catalog.hidden", { visible: visibleApps.length, count: hiddenAppTotal })
     : t("catalog.available", { visible: visibleApps.length, count: availableAppTotal });
 
   return (
-    <div className="launcher-shell">
+    <div className={`launcher-shell${isMinimal ? " launcher-shell--minimal" : ""}`}>
       <WindowTitleBar
-        hasUnsavedWork={saving || editing !== null || groupsOpen || pendingRemoval !== null || pendingGroupRemoval !== null} query={query} searchInputRef={searchInputRef} searchContext={JSON.stringify([activeGroup, sortMode])} onQueryChange={setQuery} onWindowError={() => setToast(message("feedback.windowFailed"))} />
+        hasUnsavedWork={hasUnsavedWork} query={query} searchInputRef={searchInputRef}
+        searchContext={JSON.stringify([interfaceMode, activeGroup, minimalView, minimalGroup, sortMode])}
+        onQueryChange={setQuery} onWindowError={() => setToast(message("feedback.windowFailed"))}
+        interfaceMode={interfaceMode} onInterfaceModeChange={changeInterfaceMode} interfaceModeSaveFailed={interfaceModeSaveFailed}
+        onAdd={openAdd} onManageGroups={() => setGroupsOpen(true)}
+        onShowHidden={() => { setActiveGroup("hidden"); setActionsForId(null); setInterfaceMode("standard"); }}
+        onRescan={() => void rescan()} loading={loading} refreshing={refreshing} sortMode={sortMode} onSortChange={setSortMode} />
+      {isMinimal ? <MinimalCatalog
+        apps={visibleApps} groups={state.groups} view={minimalView} group={minimalGroup} query={query}
+        loading={loading} refreshing={refreshing} error={error !== null} saving={saving} launchingId={launchingId}
+        actionsForId={actionsForId} openingLocationId={openingLocationId} scrollRef={catalogScrollRef}
+        onViewChange={(view) => { setMinimalView(view); setActionsForId(null); }}
+        onGroupChange={(group) => { setMinimalGroup(group); setActionsForId(null); }}
+        onClearSearch={() => { setQuery(""); searchInputRef.current?.focus(); }}
+        onRetry={() => void load(false)} onRescan={() => void rescan()} onActionsChange={setActionsForId}
+        onLaunch={(app) => void launch(app)} onDetails={(app) => { setActionsForId(null); setDetailAppId(app.id); }}
+        onEdit={openEdit} onOpenLocation={(app) => void openLocation(app)} onTogglePin={(app) => void togglePin(app)}
+        onRemove={requestRemove} onRestore={(app) => void restoreApp(app)} /> : (
       <div className="launcher-workspace">
         <aside className="launcher-sidebar" aria-label={t("groups.heading")}>
           <div className="sidebar-heading">
@@ -512,33 +577,25 @@ export default function App() {
           <section className="detail-panel" aria-labelledby="detail-heading">
             <header className="rail-heading"><div><FolderOpen size={16} /><h2 id="detail-heading">{t("details.heading")}</h2></div></header>
             {selectedApp ? (
-              <div className="app-detail">
-                <div className="app-detail__identity"><AppIcon app={selectedApp} size="large" /><div><strong>{selectedApp.name}</strong><span>{sourceLabel(selectedApp)}</span></div></div>
-                <dl>
-                  <div className="detail-note"><dt>{t("app.note")}</dt><dd>{selectedApp.note || t("app.noNote")}</dd></div>
-                  <div><dt>{t("app.group")}</dt><dd>{selectedApp.group || t("groups.ungrouped")}</dd></div>
-                  <div><dt>{t("table.launchCount")}</dt><dd>{t("details.launchCount", { count: selectedApp.launchCount })}</dd></div>
-                  <div><dt>{t("details.lastOpened")}</dt><dd>{formatLastLaunch(selectedApp.lastLaunchedAt, locale)}</dd></div>
-                  <div className="detail-path"><dt>{t("details.location")}</dt><dd title={selectedApp.path}>{selectedApp.path || t("details.notProvided")}</dd></div>
-                </dl>
-                <div className="detail-actions">
-                  {selectedApp.hidden ? (
-                    <Button className="paper-button paper-button--wide" loading={saving} onClick={() => void restoreApp(selectedApp)}>{t("app.restore")}</Button>
-                  ) : (
-                    <Button className="paper-button paper-button--terracotta paper-button--wide" disabled={!selectedApp.exists || launchingId !== null} loading={launchingId === selectedApp.id} onClick={() => void launch(selectedApp)}>{t("app.launchFull")}</Button>
-                  )}
-                  <div><Button className="paper-button" disabled={!selectedApp.path} onClick={() => void openLocation(selectedApp)}>{t("app.openLocationShort")}</Button><Button className="paper-button" onClick={() => openEdit(selectedApp)}>{t("common.edit")}</Button></div>
-                  {!selectedApp.hidden ? (
-                    <Button className="paper-button paper-button--quiet paper-button--wide" icon={selectedApp.pinned ? <PinOff size={14} /> : <Pin size={14} />} loading={saving} onClick={() => void togglePin(selectedApp)}>
-                      {selectedApp.pinned ? t("app.unpin") : t("app.pin")}
-                    </Button>
-                  ) : null}
-                </div>
-              </div>
+              renderDetails(selectedApp)
             ) : <p className="rail-empty">{t("details.empty")}</p>}
           </section>
         </aside>
       </div>
+
+      )}
+      <Dialog open={isMinimal && detailApp !== null} title={t("minimal.details")} closeLabel={t("common.close")}
+        className="minimal-detail-dialog" onClose={() => setDetailAppId(null)}
+        onCloseAutoFocus={(event) => {
+          // The editor owns focus when it replaces the details dialog.
+          if (editing !== null) event.preventDefault();
+        }}
+        feedback={<>
+          {error ? <p className="dialog-feedback" role="alert">{t("error.loadTitle")} {t("error.loadDescription")}</p> : null}
+          {toast ? <p className="dialog-feedback" role="status">{formatMessage(toast)}</p> : null}
+        </>}>
+        {detailApp ? renderDetails(detailApp) : null}
+      </Dialog>
 
       <Dialog closeLabel={t("common.close")} feedback={toast ? <p className="dialog-feedback" role="status">{formatMessage(toast)}</p> : undefined}
         open={editing !== null}
@@ -616,7 +673,7 @@ export default function App() {
       <Dialog closeLabel={t("common.close")} feedback={toast ? <p className="dialog-feedback" role="status">{formatMessage(toast)}</p> : undefined} open={pendingGroupRemoval !== null} title={t("groups.delete")} onClose={() => !saving && setPendingGroupRemoval(null)} footer={<><Button className="paper-button" disabled={saving} onClick={() => setPendingGroupRemoval(null)}>{t("common.cancel")}</Button><Button className="paper-button paper-button--danger" loading={saving} onClick={() => void confirmGroupRemoval()}>{t("groups.delete")}</Button></>}>
         <p className="confirmation-copy">{t("groups.deleteDescription", { name: pendingGroupRemoval ?? "" })}</p>
       </Dialog>
-      {toast && !editing && !groupsOpen && !pendingRemoval && !pendingGroupRemoval ? <div className="toast" role="status" aria-live="polite">{formatMessage(toast)}</div> : null}
+      {toast && !editing && !groupsOpen && !pendingRemoval && !pendingGroupRemoval && !detailApp ? <div className="toast" role="status" aria-live="polite">{formatMessage(toast)}</div> : null}
     </div>
   );
 }
@@ -650,30 +707,6 @@ function NavGlyph({ tabKey }: { readonly tabKey: string }) {
   if (tabKey === "hidden") return <EyeOff size={14} aria-hidden="true" />;
   return <FolderOpen size={14} aria-hidden="true" />;
 }
-
-function sortLauncherApps(apps: readonly LauncherApp[], sortMode: SortMode, locale: string): LauncherApp[] {
-  if (sortMode === "default") {
-    return [...apps].sort((left, right) => Number(right.pinned) - Number(left.pinned) || left.order - right.order || left.name.localeCompare(right.name, locale));
-  }
-  return [...apps].sort((left, right) => {
-    const pinned = Number(right.pinned) - Number(left.pinned);
-    if (pinned) return pinned;
-    if (sortMode === "recent") {
-      const recent = timestampValue(right.lastLaunchedAt) - timestampValue(left.lastLaunchedAt);
-      if (recent) return recent;
-      if (right.launchCount !== left.launchCount) return right.launchCount - left.launchCount;
-    }
-    if (sortMode === "frequent") {
-      if (right.launchCount !== left.launchCount) return right.launchCount - left.launchCount;
-      const recent = timestampValue(right.lastLaunchedAt) - timestampValue(left.lastLaunchedAt);
-      if (recent) return recent;
-    }
-    return left.name.localeCompare(right.name, locale);
-  });
-}
-
-function hasLaunchTime(app: LauncherApp): boolean { return timestampValue(app.lastLaunchedAt) > 0; }
-function timestampValue(value: number | null): number { return typeof value === "number" && Number.isFinite(value) ? value : 0; }
 
 function formatLastLaunch(value: number | null, locale: string): string {
   const timestamp = timestampValue(value);

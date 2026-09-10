@@ -6,7 +6,10 @@ and CSS, so Vite builds the complete frontend without a published UI dependency.
 
 React handles presentation and user interaction. Application-local i18next resources
 provide English and Simplified Chinese; locale preferences use local WebView
-storage and do not change the three JSON data files. See `localization.md`. `src/api.ts` invokes typed
+storage and do not change the three JSON data files. See `localization.md`.
+Standard and paper-minimal interfaces share the same launcher state and pure
+catalog transformations; their device-local appearance preference does not alter
+launcher JSON. See `minimal-mode.md`. `src/api.ts` invokes typed
 application-local Tauri commands. Rust in `src-tauri/src/launcher.rs` handles
 discovery, icons, local application launch, grouping, and JSON persistence.
 

@@ -80,18 +80,21 @@ export interface DialogProps extends PropsWithChildren {
   readonly closeLabel: string;
   readonly feedback?: ReactNode;
   readonly onEscapeKeyDown?: ComponentPropsWithoutRef<typeof DialogPrimitiveRadix.Content>["onEscapeKeyDown"];
+  readonly onOpenAutoFocus?: ComponentPropsWithoutRef<typeof DialogPrimitiveRadix.Content>["onOpenAutoFocus"];
+  readonly onCloseAutoFocus?: ComponentPropsWithoutRef<typeof DialogPrimitiveRadix.Content>["onCloseAutoFocus"];
+  readonly className?: string;
 }
 
 /**
  * 预设 Dialog：标题 + 滚动 body + 可选 footer。
  * 基于 Radix，自带焦点陷阱、背景滚动锁、Esc/点击遮罩关闭。
  */
-export function Dialog({ title, open, onClose, footer, closeLabel, feedback, onEscapeKeyDown, children }: DialogProps) {
+export function Dialog({ title, open, onClose, footer, closeLabel, feedback, onEscapeKeyDown, onOpenAutoFocus, onCloseAutoFocus, className = "", children }: DialogProps) {
   return (
     <DialogPrimitiveRadix.Root open={open} onOpenChange={(next) => !next && onClose()}>
       <DialogPrimitiveRadix.Portal>
         <DialogPrimitiveRadix.Overlay className="ui-dialog-backdrop" />
-        <DialogPrimitiveRadix.Content className="ui-dialog" aria-describedby={undefined} onEscapeKeyDown={onEscapeKeyDown}>
+        <DialogPrimitiveRadix.Content className={["ui-dialog", className].filter(Boolean).join(" ")} aria-describedby={undefined} onEscapeKeyDown={onEscapeKeyDown} onOpenAutoFocus={onOpenAutoFocus} onCloseAutoFocus={onCloseAutoFocus}>
           <header className="ui-dialog__head">
             <DialogPrimitiveRadix.Title asChild>
               <h2>{title}</h2>

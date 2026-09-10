@@ -33,6 +33,10 @@ pub(super) fn run_powershell(script: &str) -> Result<String, String> {
         .and_then(|_| resource.write_all(script.as_bytes()))
         .and_then(|_| resource.flush())
         .map_err(|_| "Cannot write the discovery script resource".to_string())?;
+    // Close the writable handle before PowerShell opens the script for reading.
+    // Windows sharing checks are bidirectional: its read-only sharing mode can
+    // reject our still-open write handle. TempPath retains automatic cleanup.
+    let resource = resource.into_temp_path();
     let mut command = Command::new(executable);
     command
         .args([
@@ -43,7 +47,7 @@ pub(super) fn run_powershell(script: &str) -> Result<String, String> {
             "Bypass",
             "-File",
         ])
-        .arg(resource.path())
+        .arg(&resource)
         // Applies only to discovery, not to applications the user launches.
         .creation_flags(0x08000000); // CREATE_NO_WINDOW
     run_command(&mut command, Duration::from_secs(45), 16 * 1024 * 1024)

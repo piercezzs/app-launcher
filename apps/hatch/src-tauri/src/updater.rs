@@ -574,11 +574,20 @@ mod tests {
                         Err(error) => panic!("fixture server error: {error}"),
                     }
                 };
+                // Windows accepted sockets inherit the listener's nonblocking
+                // mode. A read timeout does not switch them back to blocking.
+                connection.set_nonblocking(false).unwrap();
                 connection
                     .set_read_timeout(Some(Duration::from_secs(3)))
                     .unwrap();
                 let mut request = [0; 4096];
-                connection.read(&mut request).unwrap();
+                let mut received = 0;
+                while !request[..received].windows(4).any(|part| part == b"\r\n\r\n") {
+                    assert!(received < request.len(), "fixture request headers too large");
+                    let count = connection.read(&mut request[received..]).unwrap();
+                    assert!(count > 0, "fixture request ended before its headers");
+                    received += count;
+                }
                 write!(
                     connection,
                     "HTTP/1.1 {status} Test\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",

@@ -2,7 +2,7 @@
 
 <img src="docs/brand/hatch-icon.png" alt="Hatch" width="128" />
 
-> Hatch 是 App Launcher 的新名称。v0.3.0 开始使用 Hatch 名称及新图标；历史发布包与下方截图仍保留旧品牌。
+> Hatch 是 App Launcher 的新名称。历史 App Launcher 发布包保留原有品牌。
 
 [English](README.md) | **简体中文**
 
@@ -15,14 +15,13 @@
 
 ## 界面预览
 
-![更名前 App Launcher 在 macOS 上的中文主界面](docs/images/main-zh-CN.jpg)
+![Hatch 在 macOS 上的纸纹极简模式](docs/images/minimal-main-zh-CN.png)
 
-搜索、置顶应用、分组、最近使用和应用详情，集中在纸感工作界面中。
+默认采用纸纹极简模式：温暖纸张背景、单一应用网格，以及搜索、全部／置顶／最近和独立分组筛选。
+应用详情和管理操作按需打开，让主界面保持简洁。
 
-![更名前 App Launcher 在 macOS 上的中文应用编辑弹窗](docs/images/edit-zh-CN.jpg)
-
-截图来自更名前版本的真实 macOS 原生窗口，使用独立数据目录及演示分组、历史记录。
-切换界面语言时，用户创建的名称、备注和路径保留原文。
+截图来自 v0.5.0 的真实 macOS 原生窗口，使用独立数据目录。
+通过 **更多 → 设置 → 界面模式** 可返回标准模式。已有明确模式选择会保留；没有保存偏好的用户默认进入极简模式。
 
 ## 功能
 
@@ -32,6 +31,7 @@
 - 显示原生应用图标，无法提取时使用占位图标。
 - 添加自定义本地路径和启动参数，编辑备注、隐藏不需要的条目。
 - 支持简体中文、English，以及跟随系统语言。
+- 默认进入纸纹极简模式，也可在设置中切换到标准模式，详见[模式说明（英文）](docs/minimal-mode.md)。
 - 应用数据保存在本机，启动应用无需账号或远程服务。
 
 ## 下载与安装
@@ -51,9 +51,9 @@ macOS：打开 DMG，将应用拖入 Applications。Windows：运行安装程序
 **已有安装：** macOS 打开 Hatch 前请先退出 App Launcher；复制 Hatch.app 不会替换旧 App Launcher.app，请勿同时运行两个版本。
 Windows v0.3.0 预览包仅面向全新安装，尚不支持或保证从旧 App Launcher 升级；已有用户请继续使用旧版，等待迁移路径验证完成。
 
-**开发状态：** v0.4.1 新增签名应用内更新，变化和待验收边界见 [v0.4.1 发布说明](docs/releases/v0.4.1.md)。
-实际可用安装包以 Releases 中已发布的版本为准。
-较早的 v0.1.0 安装包不包含语言切换，请从 [Releases](https://github.com/piercezzs/hatch/releases) 获取可用安装包。
+**当前预览版：** v0.5.0 默认使用纸纹极简模式，同时保留完整标准界面。
+变化和验收边界见 [v0.5.0 发布说明](docs/releases/v0.5.0.md)。本次公开预览通过手动下载安装，
+不进入稳定版应用内更新通道。v0.4.1 更新功能版本仍为独立草稿；实际可用安装包以已发布资产为准。
 
 macOS 安装包使用临时签名，**尚未进行 Apple 公证**；Windows 安装包
 **尚未进行发布者签名**。系统可能显示提示或拦截安装、启动。请勿全局关闭系统安全保护。
@@ -65,9 +65,9 @@ Windows 扫描、图标、启动及窗口行为的完整实机验收，以及 In
 
 ## 语言切换
 
-![更名前 App Launcher 在 macOS 上的全局语言设置](docs/images/settings-zh-CN.jpg)
+![Hatch 在 macOS 上的界面模式与语言设置](docs/images/minimal-settings-zh-CN.png)
 
-打开右上角的 **设置**，选择应用语言：
+在极简模式打开 **更多 → 设置**，或在标准模式打开 **设置**，选择应用语言：
 
 - **跟随系统**：跟随系统 WebView 提供的首选语言；中文变体使用简体中文，其他语言回退英文。
 - **简体中文**或 **English**：立即切换为指定语言。
@@ -108,7 +108,7 @@ pnpm desktop:build:local
 任何一步失败都会停止并返回非零退出码；成功后会输出应用包路径。首次按明确架构构建可能较慢。
 此本地命令不会进行 Apple 公证、安装、上传或发布。
 
-`pnpm test` 执行国际化测试及 Rust 测试。前端开发端口为 `1430`。
+`pnpm test` 执行前端测试（包括国际化、目录筛选及偏好设置）与 Rust 测试。前端开发端口为 `1430`。
 `pnpm --filter hatch dev` 仅启动前端预览；原生扫描和启动操作需要 Tauri 运行时。
 
 ## 仓库与翻译维护
@@ -135,7 +135,7 @@ docs/images/                  原生应用运行截图
 `scan_cache.json` 保存可重新生成的扫描缓存。
 应用标识仍为 `com.tessera.app-launcher`，以保持应用标识及数据连续性。安装器的升级识别需要单独处理，详见[品牌迁移说明（英文）](docs/releasing.md#hatch-branding-transition)。
 
-语言偏好单独保存在应用的本地 WebView 存储中。应用路径、分组、图标和启动历史留在本机。
+语言和界面模式偏好单独保存在应用的本地 WebView 存储中。应用路径、分组、图标和启动历史留在本机。
 本工具不提供遥测或账号服务；翻译词典随应用打包，离线可用。
 应用路径失效不会触发远程下载。GitHub 下载行为受 GitHub 自身政策约束。
 
@@ -143,7 +143,7 @@ docs/images/                  原生应用运行截图
 
 - 尚未实现拖拽排序，以及仅存在于 macOS Assets.car 中的图标提取。
 - 完整目标平台验收和正式签名仍待完成，详见上方说明。
-- 数据备份目前需要手动执行，请先退出应用；仅备份三个 JSON 文件不包含独立的 WebView 语言偏好。
+- 数据备份目前需要手动执行，请先退出应用；仅备份三个 JSON 文件不包含独立的 WebView 语言和界面模式偏好。
 
 更多信息见[架构与验收说明（英文）](docs/architecture.md)。反馈问题时请提供平台、应用版本、
 界面语言和复现步骤，并避免包含私人路径或凭据：[提交 Issue](https://github.com/piercezzs/hatch/issues)。

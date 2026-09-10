@@ -2,7 +2,7 @@
 
 <img src="docs/brand/hatch-icon.png" alt="Hatch" width="128" />
 
-> Hatch is the new name of App Launcher. Version v0.3.0 introduces the Hatch name and icon. Older releases and the screenshots below retain the previous branding.
+> Hatch is the new name of App Launcher. Older App Launcher releases retain their original branding.
 
 **English** | [简体中文](README.zh-CN.md)
 
@@ -15,15 +15,15 @@ React, and Rust. Find your apps, organize your workspace, and launch with less f
 
 ## A look inside
 
-![App Launcher before the Hatch rebrand, in English on macOS](docs/images/main-en.jpg)
+![Hatch paper-minimal mode in English on macOS](docs/images/minimal-main-en.png)
 
-Search, pinned apps, groups, recent activity, and app details in one paper-inspired workspace.
+Paper-minimal mode is the default: a warm paper background, one application grid,
+search, All / Pinned / Recent tabs, and an independent group filter. App details
+and management actions open when needed, keeping the main window uncluttered.
 
-![Editing an app in English on macOS](docs/images/edit-en.jpg)
-
-Screenshots show the pre-rebrand build running in a native macOS window,
-using an isolated profile with demonstration groups and history. User-created names,
-notes, and paths retain their original text when the interface language changes.
+These are actual macOS screenshots of v0.5.0 using an isolated profile. Standard
+mode remains available in **More → Settings → Interface mode**. An existing saved
+mode is preserved; profiles without a preference start in Minimal.
 
 ## Features
 
@@ -33,6 +33,7 @@ notes, and paths retain their original text when the interface language changes.
 - Display native app icons, with a placeholder when extraction is unavailable.
 - Add custom local paths and launch arguments; edit notes and hide unwanted entries.
 - Switch between English and Simplified Chinese, or follow your system language.
+- Start in paper-minimal mode, or choose Standard in Settings; see [mode behavior](docs/minimal-mode.md).
 - Keep app data on your device. No account or remote service is needed to launch apps.
 
 ## Download and install
@@ -55,11 +56,11 @@ version at a time. The Windows v0.3.0 preview is for clean installations;
 upgrading an existing App Launcher installation is not supported or verified.
 Keep using the previous Windows version until its migration path is verified.
 
-**Development status:** v0.4.1 adds signed in-app updates. See the
-[v0.4.1 release notes](docs/releases/v0.4.1.md) for changes and pending acceptance.
-Only published assets in Releases are available for general installation.
-The earlier v0.1.0 installers do not include language switching.
-See [Releases](https://github.com/piercezzs/hatch/releases) for available installers.
+**Current preview:** v0.5.0 introduces default paper-minimal mode and preserves the
+full Standard interface. See the [v0.5.0 release notes](docs/releases/v0.5.0.md)
+for changes and acceptance limits. This public preview is a manual download and
+is excluded from the stable in-app update feed. The v0.4.1 updater release remains
+a separate draft; only published release assets are available for installation.
 
 macOS packages use ad-hoc signing and are **not notarized**. Windows installers
 are **not publisher-signed**. Your operating system may warn or block them.
@@ -73,9 +74,9 @@ Intel Mac acceptance remain pending; build success alone does not establish them
 
 ## Language
 
-![App Launcher language settings before the Hatch rebrand](docs/images/settings-en.jpg)
+![Hatch interface and language settings on macOS](docs/images/minimal-settings-en.png)
 
-Open **Settings** in the top-right corner and choose a language:
+Open **More → Settings** in Minimal mode, or **Settings** in Standard mode, and choose a language:
 
 - **System**: follow the primary language preference exposed by the system WebView.
   Chinese variants use Simplified Chinese; other languages fall back to English.
@@ -120,7 +121,7 @@ stops the command with a nonzero exit code. The verified output path is printed 
 the end; the first build for an explicit architecture may take longer.
 This local command does not notarize, install, upload, or publish the app.
 
-`pnpm test` runs the language tests and Rust tests. The frontend development port
+`pnpm test` runs frontend tests (including language, catalog and preferences) and Rust tests. The frontend development port
 is `1430`. `pnpm --filter hatch dev` starts a renderer-only preview; native
 scan and launch actions require the Tauri runtime.
 
@@ -151,7 +152,7 @@ App records live in the operating system's app-data directory, under `launcher/`
 `com.tessera.app-launcher` for application identity and data continuity.
 Installer upgrade behavior is separate; see the [branding transition](docs/releasing.md#hatch-branding-transition).
 
-The language preference uses the application's local WebView storage, separately
+The language and interface-mode preferences use the application's local WebView storage, separately
 from app records. Installed paths, groups, icons, and launch history stay on the
 device. There is no telemetry or account service. Translation dictionaries ship
 with the app and work offline. Missing apps never trigger remote downloads.
@@ -162,7 +163,7 @@ GitHub downloads are governed by GitHub's policies.
 - Drag-and-drop ordering and macOS Assets.car-only icon extraction are not implemented.
 - Full target-host acceptance and production signing remain pending as described above.
 - Backups are manual; stop the app before copying its data. Backing up only the
-  three JSON files does not include the separate WebView language preference.
+  three JSON files does not include the separate WebView language and interface-mode preferences.
 
 See [architecture and acceptance](docs/architecture.md). For bugs, include your
 platform, app version, interface language, and steps to reproduce in an
